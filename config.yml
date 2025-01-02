@@ -1,6 +1,6 @@
 server:
     base_url: http://localhost:8080/dhis
-    d2_token: d2p_fs9umC6OKnuxXGUPuL8zL9of0jfNmY2cO5la3bvHukHc28Bt5M
+    d2_token: d2p_mFQNaWJ5pUd5vuYzYqzsuLxOpSjVKElus3gHH5IW3JHq43Oila
     default_coc: HllvX50cXC0
     max_concurrent_requests: 10
 stages:
@@ -8,7 +8,9 @@ stages:
     duration: 12 months
     level: 4
     validation_rule_groups: UP1lctvalPn
-    destination_data_element: UgYZs3pqinS
-  - name: Disease outbreak
-    previous_periods: 3
-    dataset: y2yQIm79VTW
+    destination_data_element: sp9MDryKKmt
+  - name: Reproductive health
+    previous_periods: 6
+    level: 4
+    dataset: QX4ZTUbOt3a
+    destination_data_element: ewYKaAN8OXz

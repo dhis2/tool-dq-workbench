@@ -1,9 +1,10 @@
 import unittest
 import sys
 import os
+from lib.periodUtils import Dhis2PeriodUtils
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from lib.periodUtils import Dhis2PeriodUtils
+
 class TestDhis2PeriodUtils(unittest.TestCase):
 
     def test_previous_monthly_periods(self):
@@ -43,7 +44,39 @@ class TestDhis2PeriodUtils(unittest.TestCase):
 
     def test_current_monthly_period(self):
         date = "2023-01-01"
-        result = Dhis2PeriodUtils.current_monthly_period()
+        result = Dhis2PeriodUtils.current_monthly_period(date)
         self.assertEqual(result, "202301")
+
+    def test_current_weekly_period(self):
+        date = "2023-01-01"
+        result = Dhis2PeriodUtils.current_weekly_period(date)
+        self.assertEqual(result, "2022W52")
+
+    def test_current_daily_period(self):
+        date = "2023-01-01"
+        result = Dhis2PeriodUtils.current_daily_period(date)
+        self.assertEqual(result, "20230101")
+
+    def test_current_quarterly_period(self):
+        date = "2023-01-01"
+        result = Dhis2PeriodUtils.current_quarterly_period(date)
+        self.assertEqual(result, "2023Q1")
+
+    def test_current_period(self):
+        dhis2_period_utils = Dhis2PeriodUtils()
+        date = "2023-01-01"
+        result = dhis2_period_utils.get_current_period(date, "Monthly")
+        self.assertEqual(result, "202301")
+
+        result = dhis2_period_utils.get_current_period(date, "Weekly")
+        self.assertEqual(result, "2022W52")
+
+        result = dhis2_period_utils.get_current_period(date, "Daily")
+        self.assertEqual(result, "20230101")
+
+        result = dhis2_period_utils.get_current_period(date, "Quarterly")
+        self.assertEqual(result, "2023Q1")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,38 +1,58 @@
 # Validation Rule Monitoring App for DHIS2
 
 ## Overview
-The Validation Rule Monitoring App is a server-side script designed for use with DHIS2. This app focuses on improving data quality by monitoring and analyzing validation rule violations over a specified time period, specifically targeting data inconsistencies that impact health reporting and decision-making.
+The Validation Rule Monitoring App is a server-side script designed for use with DHIS2. This server side script
+focuses on improving data quality by monitoring and analyzing validation rule violations over a specified time period, 
+specifically targeting data inconsistencies that impact health reporting and decision-making.
 
 ### What are Validation Rules in DHIS2?
-Validation rules in DHIS2 are logical checks applied to reported data to ensure accuracy and consistency. As an example, consider a health facility that reports HIV testing data. A validation rule for this scenario could be:
+Validation rules in DHIS2 are logical checks applied to reported data to ensure accuracy and consistency. 
+As an example, consider a health facility that reports HIV testing data. A validation rule for this scenario could be:
 
 ```
 The number of people testing positive for HIV must be less than or equal to the number of people who were tested for HIV.
 ```
 
-In this case, both the number of people tested and the number of people testing positive are reported to DHIS2. The validation rule ensures that the reported data is internally consistent and accurate with respect to other data values. If the number of people tested is lower than the number of people who test positive, this will lead to indicator calculations greater than 100%, which is a data quality problem. 
+In this case, both the number of people tested and the number of people testing positive are reported  as data elements in a DHIS2 dataset each month. 
+The validation rule ensures that the reported data is internally consistent and accurate with respect to other data values. 
+If the number of people tested is lower than the number of people who test positive or if the number of tests is not reported at all, the validation rule is violated.
+When the data is aggregated to higher levels of the organisation unit hierarchy, 
+this will lead to indicator calculations greater than 100%, which is a data quality problem. 
 
 ## Problem Statement
-Validation rule violations often occur due to incomplete or incorrect data reporting. For instance, a clinic may report the number of people testing positive for HIV but fail to report the total number tested. Such inconsistencies:
+Validation rule violations often occur due to incomplete or incorrect data reporting.
+For instance, a clinic may report the number of people testing positive for HIV but fail to report the total number tested. 
+Such inconsistencies:
 
 - Compromise data quality.
 - Lead to delays in analysis and decision-making.
 - Require systematic monitoring to identify and resolve.
 
-Previously, analyzing validation rules in DHIS2 was limited to the data quality app or via the data entry screen. This  data quality app is quite limited in that it is only capable of displaying a list of no more than 500 violations. Visualization of data quality hotspots, trends over time, and tracking of resolution progress are not possible with the data quality app.
+Previously, analyzing validation rules in DHIS2 was limited to the data quality app or via the data entry screen. 
+The data quality app is quite limited in that it is only capable of displaying a list of no more than 500 violations. 
+Visualization of data quality hotspots, trends over time, and tracking of resolution progress are not possible with the data quality app.
 
 The Validation Rule Monitoring Tool helps to  address some of these challenges by:
 
-1. Identifying validation rule violations over a defined time period (e.g., last 12 months).
-2. Capturing a snapshot of the current status of these violations. The script is meant to be run once a day and will capture the current status of a group of validation rules.
+1. Retreiving validation rule violations over a defined time period (e.g., last 12 months) for a dataset or a validation
+rule group.
+2. Capturing a snapshot value of the current status of these violations. 
+The script is meant to be run once a day and will capture the current status of a group of validation rules.
+
 3. This snapshot value is then stored in DHIS2 as a  normal data element value.
-4. Tracking the resolution status of these violations over subsequent days can be accomplished by using the native DHIS2 analysis tools such as maps, graphs, and pivot tables. As the value of the validation rule snapshot data element is updated daily, it is possible to track the resolution status of the validation rule violations over time. Ideally, the value of the data element used to track the validation rule violations should be 0%, indicating that there are no validation rule violations. A value of 100% would indicate that over the given time period and validation rules checked, that all the validation rules have violations.
+
+5. Tracking the resolution status of these violations over subsequent days can be accomplished by using the 
+native DHIS2 analysis tools such as maps, graphs, and pivot tables. 
+As the value of the validation rule snapshot data element is updated daily, it is possible to track the 
+resolution status of the validation rule violations over time. Ideally, the value of the data element used to 
+track the validation rule violations should be 0%, indicating that there are no validation rule violations. 
+A value of 100% would indicate that over the given time period and validation rules checked, that all the validation rules have violations.
 
 
 ### Core Functionality of the Tool
 
 1. **Data Collection and Transformation**
-   The tool retrieves validation rule violations from DHIS2 for a specified time period for a defined validation rule group for a single organisation unit. While this may not seem particularly effecient, In order to illustrate this, lets consider the following example validation rule group called "ANC Data Quality" which consists of two validation rules:
+   The tool retrieves validation rule violations from DHIS2 for a specified time period for a defined validation rule group for a specified level of the organisation unit hierarchy. While this may not seem particularly effecient, In order to illustrate this, lets consider the following example validation rule group called "ANC Data Quality" which consists of two validation rules:
      - The number of ANC2 visits should be less than or equal to the number of ANC1 visits.
      - The number of ANC3 visits should be less than or equal to the number of ANC2 visits.
    - In the configuration file, we can define multiple stages of the data quality process and define validation rules for each stage. Each stage should consist of the following:
