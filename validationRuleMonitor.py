@@ -22,7 +22,7 @@ class ValidationRuleMonitor:
         self.base_url = self.config['server']['base_url']
         self.d2_token = self.config['server']['d2_token']
         self.default_coc = self.config['server']['default_coc']
-        self.max_concurrent_requests = self.max_concurrent_requests = self.config['server'].get('max_concurrent_requests', 10)
+        self.max_concurrent_requests = self.config['server'].get('max_concurrent_requests', 10)
         self.decimal_places = self.config['server'].get('decimal_places', 3)
 
         self.request_headers = {
@@ -111,6 +111,9 @@ class ValidationRuleMonitor:
         for response in responses:
             response_data = json.loads(response)
             validation_ratio = round(len(response_data['validationRules']) / validation_rule_count * 100, self.decimal_places)
+            # only create a data value if we have a value greater than 0
+            if validation_ratio == 0:
+                continue
             datavalue = {
                 'organisationUnit': response_data['orgUnit'],
                 'period': response_data['period'],
@@ -129,7 +132,7 @@ class ValidationRuleMonitor:
                 response_data = await response.json()
                 return {"ou": ou["id"], "period": period, "destination_de" : destination_de, "response": response_data}
 
-    async def trigger_validation_rule_analysis(self, session, vrg, ou, start_date, end_date):
+    async def trigger_validation_rule_analysis(self, session, vrg, ou, start_date, end_date, max_results=500):
         url = f'{self.base_url}/api/dataAnalysis/validationRules'
         body = {
             'notification': False,
@@ -137,7 +140,8 @@ class ValidationRuleMonitor:
             'ou': ou,
             'startDate': start_date.strftime('%Y-%m-%d'),
             'endDate': end_date.strftime('%Y-%m-%d'),
-            'vrg': vrg
+            'vrg': vrg,
+            'maxResults': max_results
         }
         async with session.post(url, json=body) as response:
             return await response.json()
@@ -150,70 +154,143 @@ class ValidationRuleMonitor:
             'value': value
         }
 
-    async def fetch_validation_rule_analysis_async(self, session, vrg, ou, start_date, number_of_periods,de, semaphore):
+    @staticmethod
+    def process_validation_results(self, results, period):
+        """Process validation results for a specific period"""
+        violations_per_org_unit = {}
+        for result in results:
+            ou_id = result['organisationUnitId']
+            if ou_id in violations_per_org_unit:
+                violations_per_org_unit[ou_id] += 1
+            else:
+                violations_per_org_unit[ou_id] = 1
+
+        # Create data values with period
+        data_values = []
+        for ou, count in violations_per_org_unit.items():
+            data_value = {
+                'period': period,
+                'orgUnit': ou,
+                'value': count
+            }
+            data_values.append(data_value)
+        return data_values
+
+    async def fetch_validation_rule_analysis_async(self, session, vrg, ou, start_date, number_of_periods, de,
+                                                   max_results, semaphore):
         async with semaphore:
-            response = await self.trigger_validation_rule_analysis(session, vrg, ou, start_date, datetime.now())
-            rules_in_group = self.validation_rule_group_count[vrg]
-            validation_rule_violation_count = len(response)
-            validation_ratio = round(validation_rule_violation_count / (rules_in_group * number_of_periods) * 100,self.decimal_places)
-            data_value = self.transform_validation_rule_response_to_datavalue(de, ou, validation_ratio)
-            return data_value
+            response = await self.trigger_validation_rule_analysis(session, vrg, ou, start_date, datetime.now(),
+                                                                   max_results)
+            violations_per_org_unit_period = {}
+            # Create a warning int the log if the number of results is greater than the max_results
+            if len(response) > max_results:
+                logging.warning(f"Number of results {len(response)} is greater than max_results {max_results} for VRG {vrg} and OU {ou}")
+            # Process the response to count violations per org unit and period
+            for result in response:
+                ou_id = result['organisationUnitId']
+                period_id = result['periodId']
+                key = (ou_id, period_id)
+                if key in violations_per_org_unit_period:
+                    violations_per_org_unit_period[key] += 1
+                else:
+                    violations_per_org_unit_period[key] = 1
+
+            data_values = []
+            for (ou_id, period_id), count in violations_per_org_unit_period.items():
+                data_value = {
+                    'dataElement': de,
+                    'orgUnit': ou_id,
+                    'period': period_id,
+                    'categoryOptionCombo': self.default_coc,
+                    'value': count
+                }
+                data_values.append(data_value)
+            return data_values
 
     async def create_and_post_data_value_set(self, session, validation_rule_values):
-        today = datetime.now()
-        data_value_set = {'period': today.strftime("%Y%m%d"), 'dataValues': validation_rule_values}
+        # Create the data value set
+        datavalue_set = {
+            'dataValues': validation_rule_values
+        }
         url = f'{self.base_url}/api/dataValueSets'
-        async with session.post(url, json=data_value_set) as response:
+        async with session.post(url, json= datavalue_set) as response:
             if response.status != 200:
+                logging.error(f"Failed to post data value set: {response.status}")
+                logging.error(await response.text())
                 raise Exception(f"Failed to post data value set: {response.status}")
             resp = await response.json()
             return resp
 
-    async def run_validation_rule_group_stage_async(self, session, stage, max_concurrent_requests=10):
+    async def run_validation_rule_group_stage_async(self, session, stage, semaphore):
         number_of_periods = int(stage['duration'].split(' ')[0])
         print(f'Running stage {stage["name"]} for {number_of_periods} periods')
         start_date = self.get_start_date_from_today(stage['duration'])
         ous = self.get_organisation_units_at_level(stage['level'])
         vrgs = tuple(stage['validation_rule_groups'].split(','))
-        semaphore = asyncio.Semaphore(max_concurrent_requests)
+
+        max_results = stage.get('max_results', 500)
         tasks = []
         for ou in ous:
             for vrg in vrgs:
                 de = stage['destination_data_element']
                 tasks.append(
                     self.fetch_validation_rule_analysis_async(session, vrg, ou, start_date, number_of_periods, de,
+                                                              max_results,
                                                               semaphore))
-        validation_rule_values = await asyncio.gather(*tasks)
-        import_summary = await self.create_and_post_data_value_set(session, validation_rule_values)
-        return import_summary
+        return await asyncio.gather(*tasks)
 
 
-    async def run_all_stages_async(self, max_concurrent_requests=10):
+    async def run_stage(self, session, stage, semaphore):
+        try:
+            logging.info(f"Running stage {stage['name']}")
+            if 'validation_rule_groups' in stage:
+                validation_rule_values = await self.run_validation_rule_group_stage_async(session, stage, semaphore)
+                return validation_rule_values
+
+            # if 'datasets' in stage:
+            #     start_date = datetime.now()
+            #     dataset_metadata = self.get_dataset_metadata(stage['dataset'])
+            #     periods = periodUtils.get_previous_periods(start_date, dataset_metadata.get('periodType'),
+            #                                                stage['duration'])
+            #     import_summary = await self.fetch_dataset_validations_async(session, stage['dataset'], periods,
+            #                                                                 max_concurrent_requests)
+            #     self.parse_import_summary(import_summary, stage['name'])
+
+        except Exception as e:
+            logging.error(f"Error running stage {stage['name']}: {e}")
+
+
+    async def run_stage_with_semaphore(self, semaphore, session, stage):
+        return await self.run_stage(session, stage, semaphore)
+
+    async def run_all_stages(self):
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+
         async with aiohttp.ClientSession(headers=self.request_headers) as session:
-            logging.info(f"Running all stages with max concurrent requests {max_concurrent_requests}")
+            logging.info(f"Running all stages with max concurrent requests {self.max_concurrent_requests}")
             clock_start = datetime.now()
-            for stage in self.config['stages']:
-                try:
-                    logging.info(f"Running stage {stage['name']}")
-                    if 'validation_rule_groups' in stage:
-                        import_summary = await self.run_validation_rule_group_stage_async(session, stage, max_concurrent_requests)
-                        self.parse_import_summary(import_summary, stage['name'])
-                    if 'datasets' in stage:
-                            start_date = datetime.now()
-                            dataset_metadata = self.get_dataset_metadata(stage['dataset'])
-                            periods = periodUtils.get_previous_periods(start_date, dataset_metadata.get('periodType'), stage['duration'])
-                            import_summary = await self.fetch_dataset_validations_async(session, stage['dataset'], periods, max_concurrent_requests)
-                            self.parse_import_summary(import_summary, stage['name'])
-                except Exception as e:
-                    print(f"Error running stage {stage['name']}: {e}")
+
+            # Build stage tasks with concurrency control
+            tasks = [
+                self.run_stage_with_semaphore(semaphore = semaphore, session=session, stage=stage)
+                for stage in self.config['stages']
+            ]
+
+            # Run them concurrently, limited by the semaphore
+            validation_rule_values_nested = await asyncio.gather(*tasks)
+            validation_rule_values = [
+                item for stage_results in validation_rule_values_nested for sublist in stage_results for item in sublist
+            ]
+            logging.info(f"Posting {len(validation_rule_values)} data values")
+            dvs_post_result = await self.create_and_post_data_value_set(session, validation_rule_values)
+            self.parse_import_summary(dvs_post_result)
             logging.info("All stages completed")
             clock_end = datetime.now()
             logging.info(f"Process took: {clock_end - clock_start}")
 
     @staticmethod
-    def parse_import_summary(import_summary, stage_name):
+    def parse_import_summary(import_summary):
         if import_summary.get('status') == 'OK':
-            logging.info(f"Stage {stage_name} completed successfully")
             response = import_summary.get('response', {})
             import_count = response.get('importCount', {})
             imported = import_count.get('imported', 0)
@@ -222,7 +299,7 @@ class ValidationRuleMonitor:
             deleted = import_count.get('deleted', 0)
             logging.info(f"Imported: {imported}, Updated: {updated}, Ignored: {ignored}, Deleted: {deleted}")
         else:
-            logging.error(f"Error running stage {stage_name}")
+            logging.error(f"Error posting data value set: {import_summary.get('status')}")
             logging.error(import_summary)
 
 if __name__ == '__main__':
@@ -231,4 +308,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     monitor = ValidationRuleMonitor(args.config)
-    asyncio.run(monitor.run_all_stages_async(max_concurrent_requests=10))
+    asyncio.run(monitor.run_all_stages())
