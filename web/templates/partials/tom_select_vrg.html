@@ -1,0 +1,18 @@
+<script>
+  new TomSelect("#validation_rule_groups", {
+    valueField: "id",
+    labelField: "text",
+    searchField: "text",
+    load: function(query, callback) {
+      if (query.length < 3) return callback();
+      fetch(`/api/validation-rule-groups?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(callback)
+        .catch(() => callback());
+    },
+    preload: true,
+    {% if stage.params.validation_rule_groups %}
+    items: ["{{ stage.params.validation_rule_groups }}"],
+    {% endif %}
+  });
+</script>

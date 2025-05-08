@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and coverage
+*.log
+*.coverage
+htmlcov/
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE / editor settings
+.idea/
+.vscode/
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+
+# YAML config files with secrets
+config/*.yml
+!config/sample-config.yml
+
+# Web server cache or logs
+web/__pycache__/
+app/**/__pycache__/
+tests/__pycache__/
+

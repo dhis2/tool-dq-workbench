@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Edit Server Config</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+  <h1>Edit Server Configuration</h1>
+
+  <form method="post">
+    <div class="mb-3">
+      <label class="form-label">Base URL</label>
+      <input class="form-control" name="base_url" value="{{ server.base_url }}">
+    </div>
+<div class="mb-3">
+  <label class="form-label">API Token</label>
+  <input class="form-control" name="d2_token" placeholder="Enter new token (leave blank to keep existing)" type="password">
+</div>
+
+    <div class="mb-3">
+      <label class="form-label">Logging Level</label>
+      <select class="form-select" name="logging_level">
+        {% for level in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+          <option value="{{ level }}" {% if server.logging_level == level %}selected{% endif %}>{{ level }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Max Concurrent Requests</label>
+      <input class="form-control" name="max_concurrent_requests" type="number" value="{{ server.max_concurrent_requests }}">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Max Results</label>
+      <input class="form-control" name="max_results" type="number" value="{{ server.max_results }}">
+    </div>
+    <button class="btn btn-primary" type="submit">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('index') }}">Cancel</a>
+  </form>
+</body>
+</html>

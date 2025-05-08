@@ -70,3 +70,16 @@ class Dhis2PeriodUtils:
             return self.previous_quarterly_periods(period, number_of_periods)
         else:
             raise ValueError("Unsupported period type")
+
+    @staticmethod
+    def get_start_date_from_today(duration_string):
+        amount, unit = duration_string.split(' ')
+        amount = int(amount)
+        unit = unit.rstrip('s')
+        supported_units = {'day': 'days', 'week': 'weeks', 'month': 'months', 'year': 'years'}
+
+        if unit not in supported_units:
+            raise ValueError(f"Invalid duration unit: {unit}")
+
+        delta = relativedelta(**{supported_units[unit]: amount})
+        return datetime.now() - delta

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{ 'Edit' if edit else 'New' }} Validation Rule Stage</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+  <h1>{{ 'Edit' if edit else 'New' }} Validation Rule Stage</h1>
+
+  <form method="post">
+    <div class="mb-3">
+      <label class="form-label">Stage Name</label>
+      <input class="form-control" name="name" value="{{ stage.name }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Org Unit Level</label>
+      <input class="form-control" name="level" type="number" value="{{ stage.level }}" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Duration (e.g. 12 months)</label>
+      <input class="form-control" name="duration" value="{{ stage.duration }}" required>
+    </div>
+
+<div class="mb-3">
+  <label class="form-label" for="validation_rule_groups">Validation Rule Group(s)</label>
+  <select id="validation_rule_groups" name="validation_rule_groups" placeholder="Search..." class="form-select">
+    {% if stage.params.validation_rule_groups %}
+      <option value="{{ stage.params.validation_rule_groups }}" selected>
+        {{ validation_rule_group_name or stage.params.validation_rule_groups }}
+      </option>
+    {% endif %}
+  </select>
+</div>
+
+    <div class="mb-3">
+      <label class="form-label">Period Type</label>
+      <input class="form-control" name="period_type" value="{{ stage.params.period_type }}" required>
+    </div>
+
+<div class="mb-3">
+  <label class="form-label" for="dataelement">Destination Data Element</label>
+  <select id="dataelement" name="destination_data_element" placeholder="Search..." class="form-select">
+    {% if stage.params.destination_data_element %}
+      <option value="{{ stage.params.destination_data_element }}" selected>
+        {{ data_element_name or stage.params.destination_data_element }}
+      </option>
+    {% endif %}
+  </select>
+</div>
+    {% include "partials/tom_select_dataelement.html" %}
+    {% include "partials/tom_select_vrg.html" %}
+
+    <button class="btn btn-primary" type="submit">{{ 'Update' if edit else 'Create' }} Stage</button>
+    <a class="btn btn-secondary" href="{{ url_for('index') }}">Cancel</a>
+  </form>
+</body>
+</html>

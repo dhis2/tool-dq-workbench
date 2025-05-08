@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Data Quality Monitor</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="p-4">
+  <h1>Data Quality Monitor</h1>
+
+  <h2>Server Config</h2>
+  <table class="table table-sm table-bordered w-auto">
+    <tbody>
+      {% for key, value in config.server.items() %}
+        {% if key != 'd2_token' %}
+        <tr>
+          <th>{{ key }}</th>
+          <td>{{ value }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  <a class="btn btn-outline-secondary mb-3" href="{{ url_for('edit_server') }}">Edit Server Config</a>
+
+  <h2>Stages</h2>
+<ul class="list-group mb-3">
+  {% for stage in config.stages %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>{{ stage.name }}</strong>
+        <span class="badge bg-secondary text-uppercase">{{ stage.type }}</span>
+      </div>
+      <div class="btn-group">
+        {% if stage.type == 'outlier' %}
+          <a href="{{ url_for('edit_outlier_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+        {% elif stage.type == 'validation_rules' %}
+          <a href="{{ url_for('edit_validation_rule_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+        {% endif %}
+        <form method="POST" action="{{ url_for('delete_stage', stage_index=loop.index0) }}" onsubmit="return confirm('Delete this stage?');" style="display: inline;">
+          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+        </form>
+      </div>
+    </li>
+  {% endfor %}
+</ul>
+
+  <a href="{{ url_for('new_outlier_stage') }}" class="btn btn-success mb-3">+ New Outlier Stage</a>
+  <a href="{{ url_for('new_validation_rule_stage') }}" class="btn btn-success mb-3">+ New Validation Rule Stage</a>
+
+
+  <form id="runForm" action="{{ url_for('run_now') }}" method="post">
+    <button id="runButton" class="btn btn-primary" type="submit">
+      <span id="spinner" class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
+      Run Now
+    </button>
+  </form>
+
+  <script>
+    const form = document.getElementById('runForm');
+    const button = document.getElementById('runButton');
+    const spinner = document.getElementById('spinner');
+
+    form.addEventListener('submit', () => {
+      button.disabled = true;
+      spinner.style.display = 'inline-block';
+      button.innerText = 'Running...';
+      button.prepend(spinner);
+    });
+  </script>
+</body>
+</html>

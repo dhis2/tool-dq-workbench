@@ -1,0 +1,33 @@
+server:
+  base_url: http://localhost:8080
+  d2_token: d2p_lvYvbRPWZVjtMbctlPJK1fiAOaLtzonlnGSjJ7NKFIzb3OmFOB
+  logging_level: INFO
+  max_concurrent_requests: 5
+  max_results: 5000
+stages:
+- duration: 6 months
+  level: 1
+  name: Outliers in Monthly Morbidity Report
+  params:
+    algorithm: MOD_Z_SCORE
+    dataset: eZDhcZi6FLP
+    destination_data_element: bH4u3bXfboi
+    threshold: 4
+  type: outlier
+- duration: 12 months
+  level: 1
+  name: Validation rules in ANC
+  params:
+    destination_data_element: dvjodtJuqZt
+    period_type: Monthly
+    validation_rule_groups: UP1lctvalPn
+  type: validation_rules
+- duration: 12 months
+  level: 1
+  name: MinMax outliers in Inpatient Morbidity Report
+  params:
+    algorithm: MIN_MAX
+    dataset: PLq9sJluXvc
+    destination_data_element: bH4u3bXfboi
+    threshold: 5
+  type: outlier

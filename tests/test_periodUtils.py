@@ -3,7 +3,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from lib.periodUtils import Dhis2PeriodUtils
+from app.core.period_utils import Dhis2PeriodUtils
 class TestDhis2PeriodUtils(unittest.TestCase):
 
     def test_previous_monthly_periods(self):
@@ -43,7 +43,7 @@ class TestDhis2PeriodUtils(unittest.TestCase):
 
     def test_current_monthly_period(self):
         date = "2023-01-01"
-        result = Dhis2PeriodUtils.current_monthly_period()
+        result = Dhis2PeriodUtils.current_monthly_period(date)
         self.assertEqual(result, "202301")
 if __name__ == "__main__":
     unittest.main()
