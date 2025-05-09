@@ -1,0 +1,80 @@
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const runForm = document.getElementById('runForm');
+    const runButton = document.getElementById('runButton');
+    const spinner = document.getElementById('spinner');
+    const summaryDiv = document.getElementById('run-summary');
+
+    // Global "Run Now" form handler
+    runForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      runButton.disabled = true;
+      spinner.style.display = 'inline-block';
+      runButton.innerText = 'Running...';
+      runButton.prepend(spinner);
+
+      try {
+        const response = await fetch(runForm.action, { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+          summaryDiv.innerHTML = `<div class="alert alert-success">${data.output}</div>`;
+          if (data.errors.length > 0) {
+            summaryDiv.innerHTML += `
+              <div class="alert alert-warning">
+                <strong>Warnings:</strong>
+                <ul>${data.errors.map(err => `<li>${err}</li>`).join('')}</ul>
+              </div>`;
+          }
+        } else {
+          summaryDiv.innerHTML = `<div class="alert alert-danger">
+            <strong>Error:</strong> ${data.errors.join(', ')}
+          </div>`;
+        }
+      } catch (err) {
+        summaryDiv.innerHTML = `<div class="alert alert-danger">Unexpected error: ${err.message}</div>`;
+      } finally {
+        runButton.disabled = false;
+        spinner.style.display = 'none';
+        runButton.innerText = 'Run Now';
+      }
+    });
+
+    // Per-stage "Run" buttons
+    document.querySelectorAll('.run-stage-form').forEach(stageForm => {
+      stageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const stageIndex = stageForm.dataset.index;
+        const stageButton = stageForm.querySelector('button');
+
+        stageButton.disabled = true;
+        stageButton.innerText = 'Running...';
+
+        try {
+          const response = await fetch(`/run-stage/${stageIndex}`, { method: 'POST' });
+          const data = await response.json();
+
+          if (data.success) {
+            summaryDiv.innerHTML = `<div class="alert alert-success">${data.output}</div>`;
+            if (data.errors.length > 0) {
+              summaryDiv.innerHTML += `
+                <div class="alert alert-warning">
+                  <strong>Warnings:</strong>
+                  <ul>${data.errors.map(err => `<li>${err}</li>`).join('')}</ul>
+                </div>`;
+            }
+          } else {
+            summaryDiv.innerHTML = `<div class="alert alert-danger">
+              <strong>Error:</strong> ${data.errors.join(', ')}
+            </div>`;
+          }
+        } catch (err) {
+          summaryDiv.innerHTML = `<div class="alert alert-danger">Unexpected error: ${err.message}</div>`;
+        } finally {
+          stageButton.disabled = false;
+          stageButton.innerText = 'Run';
+        }
+      });
+    });
+  });
+</script>

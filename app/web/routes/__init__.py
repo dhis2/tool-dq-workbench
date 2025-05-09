@@ -6,6 +6,7 @@ from .api_blueprint import api_bp
 from . import (
     index,
     run,
+    run_stage,
     edit_server,
     new_outlier_stage,
     new_validation_rule_stage,
