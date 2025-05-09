@@ -27,7 +27,7 @@ class Dhis2ApiUtils:
             if response.status != 200:
                 logging.error(f"Failed to post data value set: {response.status}")
                 logging.error(await response.text())
-                raise Exception(f"Failed to post data value set: {response.status}")
+                raise requests.exceptions.RequestException(f"Failed to post data value set: {response.status}")
             return await response.json()
 
     # --- Generic Metadata Utilities ---

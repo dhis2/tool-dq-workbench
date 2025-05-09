@@ -72,10 +72,10 @@ class OutlierAnalyzer(StageAnalyzer):
             ('ou', params['ou'])
         ]
 
-        if params.get('data_start_date'):
-            parameters['dataStartDate'] = params['data_start_date']
-        if params.get('data_end_date'):
-            parameters['dataEndDate'] = params['data_end_date']
+        if params.get('data_start_date') is not None:
+            parameters['dataStartDate'] = params.get("data_start_date")
+        if params.get('data_end_date') is not None:
+            parameters['dataEndDate'] = params.get("data_end_date")
 
         async with semaphore:
             logging.debug("Running outlier detection for organisation unit: %s for dataset %s", params['ou'],
