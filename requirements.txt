@@ -16,5 +16,5 @@ urllib3==2.2.3
 yarl==1.15.2
 
 flask~=3.0.3
-setuptools~=68.2.0
+setuptools~=70.0.0
 requests~=2.32.3

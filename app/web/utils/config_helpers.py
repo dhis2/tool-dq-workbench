@@ -1,5 +1,5 @@
 # web/utils/config_helpers.py
-
+import requests.exceptions
 import yaml
 
 def load_config(config_path):
@@ -18,5 +18,5 @@ def resolve_uid_name(fetch_fn, uid):
     try:
         obj = fetch_fn(uid)
         return obj.get("name", uid)
-    except Exception:
+    except requests.exceptions.RequestException:
         return uid

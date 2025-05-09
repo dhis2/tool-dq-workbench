@@ -77,10 +77,12 @@ class DataQualityMonitor:
 
             for name, result in zip(stage_names, results):
                 if isinstance(result, Exception):
-                    logging.error(f"Stage '{name}' failed: {result}")
+                    logging.error(f"Task failed with exception: {result}")
                     errors.append(f"{name}: {str(result)}")
-                else:
+                elif isinstance(result, list):
                     all_data_values.extend(result)
+                else:
+                    logging.warning(f"Unexpected result type from stage '{name}': {type(result)}")
 
             logging.info(f"Posting {len(all_data_values)} data values")
             try:
@@ -94,7 +96,6 @@ class DataQualityMonitor:
             logging.info("All stages completed")
             logging.info(f"Process took: {clock_end - clock_start}")
 
-        # Optional: return errors for UI reporting
         return errors
 
 
@@ -104,5 +105,11 @@ def run_main():
     args = parser.parse_args()
 
     config_manager = ConfigManager(args.config)
+    if not config_manager.config:
+        logging.error("Failed to load configuration.")
+        sys.exit(1)
     monitor = DataQualityMonitor(config_manager.config)
     asyncio.run(monitor.run_all_stages())
+
+if __name__ == '__main__':
+    run_main()

@@ -1,16 +1,14 @@
 import argparse
 import os
 import subprocess
-import sys
+from copy import deepcopy
 
+import requests.exceptions
 import yaml
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from copy import deepcopy
-from utils.config_helpers import load_config, save_config
-from utils.config_helpers import resolve_uid_name
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../app')))
-from core.api_utils import Dhis2ApiUtils
+from app.core.api_utils import Dhis2ApiUtils
+from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
 
 # Utility to generate a blank outlier stage
 def default_outlier_stage():
@@ -49,10 +47,10 @@ def create_app(config_path):
 
     @app.route('/edit-server', methods=['GET', 'POST'])
     def edit_server():
-        config_path = app.config['CONFIG_PATH']
+        server_config_path = app.config['CONFIG_PATH']
 
         if request.method == 'POST':
-            config = load_config(config_path)
+            config = load_config(server_config_path)
 
             config['server']['base_url'] = request.form['base_url']
             new_token = request.form['d2_token'].strip()
@@ -62,22 +60,22 @@ def create_app(config_path):
             config['server']['max_concurrent_requests'] = int(request.form['max_concurrent_requests'])
             config['server']['max_results'] = int(request.form['max_results'])
 
-            save_config(config_path, config)
+            save_config(server_config_path, config)
 
             flash('Server configuration updated.', 'success')
             return redirect(url_for('index'))
 
         #Reload the config
-        config = load_config(config_path)
+        config = load_config(server_config_path)
 
         return render_template("edit_server.html", server=config['server'])
 
     @app.route('/new-outlier-stage', methods=['GET', 'POST'])
     def new_outlier_stage():
-        config_path = app.config['CONFIG_PATH']
+        server_config_path = app.config['CONFIG_PATH']
 
         if request.method == 'POST':
-            config = load_config(config_path)
+            config = load_config(server_config_path)
             data_element_id = request.form['destination_data_element']
             data_element_name = data_element_id  # fallback if fetch fails
 
@@ -87,9 +85,9 @@ def create_app(config_path):
                     base_url=config['server']['base_url'],
                     d2_token=config['server']['d2_token']
                 )
-                el = api_utils.fetch_data_element(data_element_id)
+                el = api_utils.fetch_data_element_by_id(data_element_id)
                 data_element_name = el.get('name', data_element_id)
-            except Exception as e:
+            except requests.exceptions.RequestException:
                 flash(f"Warning: Failed to fetch data element name for {data_element_id}", 'warning')
 
             new_stage = {
@@ -107,7 +105,7 @@ def create_app(config_path):
             }
 
             config['stages'].append(new_stage)
-            save_config(config_path, config)
+            save_config(server_config_path, config)
             flash('New outlier stage added.', 'success')
             return redirect(url_for('index'))
 
@@ -115,10 +113,10 @@ def create_app(config_path):
 
     @app.route('/new-validation-rule-stage', methods=['GET', 'POST'])
     def new_validation_rule_stage():
-        config_path = app.config['CONFIG_PATH']
+        server_config_path = app.config['CONFIG_PATH']
 
         if request.method == 'POST':
-            config = load_config(config_path)
+            config = load_config(server_config_path)
 
             new_stage = {
                 'name': request.form['name'],
@@ -133,7 +131,7 @@ def create_app(config_path):
             }
 
             config['stages'].append(new_stage)
-            save_config(config_path, config)
+            save_config(server_config_path, config)
             flash('New validation rule stage added.', 'success')
             return redirect(url_for('index'))
 
@@ -153,7 +151,7 @@ def create_app(config_path):
 
     @app.route('/edit-outlier-stage/<int:stage_index>', methods=['GET', 'POST'])
     def edit_outlier_stage(stage_index):
-        config_path = app.config['CONFIG_PATH']
+        server_config_path = app.config['CONFIG_PATH']
         config = load_config(config_path)
 
         api_utils = Dhis2ApiUtils(
@@ -179,7 +177,7 @@ def create_app(config_path):
             stage['params']['algorithm'] = request.form['algorithm']
             stage['params']['threshold'] = int(request.form['threshold'])
             stage['params']['destination_data_element'] = request.form['destination_data_element']
-            save_config(config_path, config)
+            save_config(server_config_path, config)
             flash(f"Updated outlier stage: {stage['name']}", 'success')
             return redirect(url_for('index'))
 
@@ -188,8 +186,8 @@ def create_app(config_path):
 
     @app.route('/edit-validation-rule-stage/<int:stage_index>', methods=['GET', 'POST'])
     def edit_validation_rule_stage(stage_index):
-        config_path = app.config['CONFIG_PATH']
-        config = load_config(config_path)
+        server_config_path = app.config['CONFIG_PATH']
+        config = load_config(server_config_path)
 
         api_utils = Dhis2ApiUtils(
             base_url=config['server']['base_url'],
@@ -214,7 +212,7 @@ def create_app(config_path):
             stage['params']['period_type'] = request.form['period_type']
             stage['params']['destination_data_element'] = request.form['destination_data_element']
 
-            save_config(config_path, config)
+            save_config(server_config_path, config)
 
             flash(f"Updated validation rule stage: {stage['name']}", 'success')
             return redirect(url_for('index'))
@@ -229,8 +227,8 @@ def create_app(config_path):
 
     @app.route('/delete-stage/<int:stage_index>', methods=['POST'])
     def delete_stage(stage_index):
-        config_path = app.config['CONFIG_PATH']
-        config = load_config(config_path)
+        server_config_path = app.config['CONFIG_PATH']
+        config = load_config(server_config_path)
 
         if 0 <= stage_index < len(config['stages']):
             removed_stage = config['stages'].pop(stage_index)
@@ -243,8 +241,8 @@ def create_app(config_path):
 
     @app.route('/api/data-elements')
     def api_data_elements():
-        config_path = app.config['CONFIG_PATH']
-        config = load_config(config_path)
+
+        config = load_config(app.config['CONFIG_PATH'])
         utils = Dhis2ApiUtils(
             base_url=config['server']['base_url'],
             d2_token=config['server']['d2_token']

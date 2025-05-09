@@ -32,7 +32,7 @@ config/*.yml
 !config/sample-config.yml
 
 # Web server cache or logs
-web/__pycache__/
+app/web/__pycache__/
 app/**/__pycache__/
 tests/__pycache__/
 

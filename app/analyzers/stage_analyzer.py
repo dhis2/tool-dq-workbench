@@ -17,8 +17,9 @@ class StageAnalyzer(ABC):
         Run a stage and return a list of data values to post.
         """
         pass
-
-    def get_start_date(self, stage):
+    
+    @staticmethod
+    def get_start_date(stage):
         """Convenience wrapper for getting start date from duration"""
         return Dhis2PeriodUtils.get_start_date_from_today(stage['duration'])
 
