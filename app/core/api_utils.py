@@ -96,6 +96,17 @@ class Dhis2ApiUtils:
                 f"Ignored: {import_count.get('ignored', 0)}, "
                 f"Deleted: {import_count.get('deleted', 0)}"
             )
+            return {
+                "status": "OK",
+                "imported": import_count.get('imported', 0),
+                "updated": import_count.get('updated', 0),
+                "ignored": import_count.get('ignored', 0),
+                "deleted": import_count.get('deleted', 0)
+            }
         else:
             logging.error(f"Error posting data value set: {import_summary.get('status')}")
             logging.error(import_summary)
+            return {
+                "status": import_summary.get('status', 'UNKNOWN'),
+                "error": import_summary
+            }

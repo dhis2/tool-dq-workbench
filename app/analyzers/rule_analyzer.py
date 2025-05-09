@@ -31,24 +31,48 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         ]
 
         results_nested = await asyncio.gather(*tasks)
-        return [item for sublist in results_nested for item in sublist]
+        results = []
+        errors = []
 
-    async def _fetch_validation_rule_analysis_async(self, session, vrg, ou, start_date, data_element, max_results, semaphore):
-        async with semaphore:
-            url = f'{self.base_url}/api/dataAnalysis/validationRules'
-            body = {
-                'notification': False,
-                'persist': False,
-                'ou': ou,
-                'startDate': start_date.strftime('%Y-%m-%d'),
-                'endDate': datetime.now().strftime('%Y-%m-%d'),
-                'vrg': vrg,
-                'maxResults': max_results
-            }
+        for result in results_nested:
+            if isinstance(result, Exception):
+                logging.error(f"Validation rule analysis failed: {result}")
+                errors.append(str(result))
+            elif isinstance(result, list):
+                results.extend(result)
+            else:
+                msg = f"Unexpected result in validation rule analysis: {type(result)}"
+                logging.warning(msg)
+                errors.append(msg)
 
-            logging.debug("Running validation rule analysis for ou '%s' and vrg '%s'", ou, vrg)
-            async with session.post(url, json=body) as response:
-                response_data = await response.json()
+        return {
+            'data_values': results,
+            'errors': errors
+        }
+
+    async def _fetch_validation_rule_analysis_async(self, session, vrg, ou, start_date, data_element, max_results,
+                                                    semaphore):
+        url = f'{self.base_url}/api/dataAnalysis/validationRules'
+        body = {
+            'notification': False,
+            'persist': False,
+            'ou': ou,
+            'startDate': start_date.strftime('%Y-%m-%d'),
+            'endDate': datetime.now().strftime('%Y-%m-%d'),
+            'vrg': vrg,
+            'maxResults': max_results
+        }
+
+        try:
+            async with semaphore:
+                logging.debug("Running validation rule analysis for ou '%s' and vrg '%s'", ou, vrg)
+                async with session.post(url, json=body) as response:
+                    if response.status >= 400:
+                        text = await response.text()
+                        raise RuntimeError(f"{response.status} from DHIS2: {response.url} — {text.strip()}")
+                    response_data = await response.json()
+        except Exception as e:
+            return e  # Let parent gather() handle it
 
         # Count violations by (orgUnit, period)
         violations = {}

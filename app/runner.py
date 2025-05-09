@@ -79,15 +79,19 @@ class DataQualityMonitor:
                 if isinstance(result, Exception):
                     logging.error(f"Task failed with exception: {result}")
                     errors.append(f"{name}: {str(result)}")
-                elif isinstance(result, list):
-                    all_data_values.extend(result)
+                elif isinstance(result, dict):
+                    all_data_values.extend(result.get("data_values", []))
+                    errors.extend(result.get("errors", []))
                 else:
-                    logging.warning(f"Unexpected result type from stage '{name}': {type(result)}")
+                    msg = f"Unexpected result type from stage '{name}': {type(result)}"
+                    logging.warning(msg)
+                    errors.append(msg)
 
             logging.info(f"Posting {len(all_data_values)} data values")
+            import_summary = None
             try:
                 response = await self.api_utils.create_and_post_data_value_set(all_data_values, session)
-                Dhis2ApiUtils.parse_import_summary(response)
+                import_summary = Dhis2ApiUtils.parse_import_summary(response)
             except Exception as post_err:
                 logging.error(f"Error posting data values: {post_err}")
                 errors.append(f"Post failed: {post_err}")
@@ -99,7 +103,8 @@ class DataQualityMonitor:
         return {
             "errors": errors,
             "data_values_posted": len(all_data_values),
-            "duration": str(clock_end - clock_start)
+            "duration": str(clock_end - clock_start),
+            "import_summary": import_summary or {}
         }
 
 

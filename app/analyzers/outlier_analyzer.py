@@ -43,17 +43,24 @@ class OutlierAnalyzer(StageAnalyzer):
 
             results_nested = await asyncio.gather(*tasks, return_exceptions=True)
             results = []
+            errors = []
+
             for i, result in enumerate(results_nested):
+                ou = ous[i]
                 if isinstance(result, Exception):
-                    logging.error(f"Outlier detection failed for OU '{ous[i]}': {result}")
-                    continue
-                if isinstance(result, list):
+                    msg = f"Outlier detection failed for OU '{ou}': {str(result)}"
+                    logging.error(msg)
+                    errors.append(msg)
+                elif isinstance(result, list):
                     results.extend(result)
                 else:
-                    logging.warning(f"Unexpected result for OU '{ous[i]}': {type(result)}")
-
-            return results
-
+                    msg = f"Unexpected result type for OU '{ou}': {type(result)}"
+                    logging.warning(msg)
+                    errors.append(msg)
+            return {
+                'data_values': results,
+                'errors': errors
+            }
 
         except Exception as e:
             logging.error(f"Error running outlier stage '{stage['name']}': {e}")
@@ -72,25 +79,25 @@ class OutlierAnalyzer(StageAnalyzer):
             ('ou', params['ou'])
         ]
 
-        if params.get('data_start_date') is not None:
-            parameters['dataStartDate'] = params.get("data_start_date")
-        if params.get('data_end_date') is not None:
-            parameters['dataEndDate'] = params.get("data_end_date")
+        if params.get('data_start_date'):
+            parameters.append(('dataStartDate', params['data_start_date']))
+        if params.get('data_end_date'):
+            parameters.append(('dataEndDate', params['data_end_date']))
 
-        async with semaphore:
-            logging.debug("Running outlier detection for organisation unit: %s for dataset %s", params['ou'],
-                          params['outlier_dataset'])
-            full_url = f"{url}?{'&'.join([f'{k}={v}' for k, v in parameters])}"
-            logging.debug("Full URL: %s", full_url)
-            async with session.get(url, params=parameters) as response:
-                response.raise_for_status()
-                outlier_json = await response.json()
-                #Log any unexpected response that is not a 200
-                if response.status != 200:
-                    logging.error(f"Unexpected response status: {response.status}")
-                    logging.error(f"Response content: {await response.text()}")
+        try:
+            async with semaphore:
+                async with session.get(url, params=parameters) as response:
+                    if response.status >= 400:
+                        # Don't raise — just return detailed error
+                        text = await response.text()
+                        raise RuntimeError(f"{response.status} from DHIS2: {response.url} — {text.strip()}")
+                    outlier_json = await response.json()
 
-        return self._process_outlier_results(outlier_json, params['destination_data_element'], params['lower_bound'])
+            return self._process_outlier_results(outlier_json, params['destination_data_element'],
+                                                 params['lower_bound'])
+
+        except Exception as e:
+            return e
 
     def _process_outlier_results(self, results, destination_data_element, lower_bound):
         outliers_by_ou_and_period = {}

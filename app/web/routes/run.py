@@ -13,15 +13,31 @@ def run_now():
         config = load_config(current_app.config['CONFIG_PATH'])
         monitor = DataQualityMonitor(config)
         result = asyncio.run(monitor.run_all_stages())
+
+        # Build summary text from import summary
+        import_summary = result.get("import_summary", {})
+        summary_text = ""
+        if import_summary.get("status") == "OK":
+            summary_text = (
+                f"<br>Imported: {import_summary.get('imported', 0)}, "
+                f"Updated: {import_summary.get('updated', 0)}, "
+                f"Ignored: {import_summary.get('ignored', 0)}, "
+                f"Deleted: {import_summary.get('deleted', 0)}"
+            )
+        elif import_summary:
+            summary_text = f"<br><strong>Server status:</strong> {import_summary.get('status')}"
+
         return jsonify({
             "success": True,
             "output": (
                 f"All stages executed successfully.<br>"
                 f"Duration: {result['duration']}<br>"
                 f"Data values posted: {result['data_values_posted']}"
+                f"{summary_text}"
             ),
             "errors": result['errors']
         })
+
     except Exception as e:
         return jsonify({
             "success": False,

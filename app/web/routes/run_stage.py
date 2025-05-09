@@ -7,7 +7,6 @@ from app.runner import DataQualityMonitor
 from app.web.routes.api_blueprint import api_bp
 from app.web.utils.config_helpers import load_config
 
-
 @api_bp.route('/run-stage/<int:stage_index>', methods=['POST'], endpoint='run_stage')
 def run_stage(stage_index):
     try:
@@ -20,19 +19,34 @@ def run_stage(stage_index):
 
         monitor = DataQualityMonitor(filtered_config)
         result = asyncio.run(monitor.run_all_stages())
+
+        # Extract import summary details
+        import_summary = result.get("import_summary", {})
+        summary_text = ""
+        if import_summary.get("status") == "OK":
+            summary_text = (
+                f"<br>Imported: {import_summary.get('imported', 0)}, "
+                f"Updated: {import_summary.get('updated', 0)}, "
+                f"Ignored: {import_summary.get('ignored', 0)}, "
+                f"Deleted: {import_summary.get('deleted', 0)}"
+            )
+        elif import_summary:
+            summary_text = f"<br><strong>Server status:</strong> {import_summary.get('status')}"
+
+        return jsonify({
+            "success": True,
+            "output": (
+                f"Stage '{stage['name']}' executed successfully.<br>"
+                f"Duration: {result['duration']}<br>"
+                f"Data values posted: {result['data_values_posted']}"
+                f"{summary_text}"
+            ),
+            "errors": result['errors']
+        })
+
     except Exception as e:
         return jsonify({
             "success": False,
             "output": "",
             "errors": [f"Failed to run stage {stage_index}: {str(e)}"]
         }), 500
-
-    return jsonify({
-        "success": True,
-        "output": (
-            f"Stage '{stage['name']}' executed successfully.<br>"
-            f"Duration: {result['duration']}<br>"
-            f"Data values posted: {result['data_values_posted']}"
-        ),
-        "errors": result['errors']
-    })
