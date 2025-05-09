@@ -15,6 +15,7 @@ class ConfigManager:
         if 'stages' not in self.config:
             raise ValueError("No stages defined in configuration")
 
+
         for stage in self.config['stages']:
             self._validate_stage(stage)
             self._validate_stage_params(stage)

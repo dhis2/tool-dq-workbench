@@ -46,6 +46,7 @@ class ValidationRuleAnalyzer(StageAnalyzer):
                 'maxResults': max_results
             }
 
+            logging.debug("Running validation rule analysis for ou '%s' and vrg '%s'", ou, vrg)
             async with session.post(url, json=body) as response:
                 response_data = await response.json()
 

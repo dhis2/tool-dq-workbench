@@ -71,16 +71,24 @@ class OutlierAnalyzer(StageAnalyzer):
             ('threshold', str(params['threshold'])),
             ('ou', params['ou'])
         ]
-        logging.info("Running outlier detection for organisation unit: %s for stage %s", params['ou'], params['outlier_dataset'])
+
         if params.get('data_start_date'):
             parameters['dataStartDate'] = params['data_start_date']
         if params.get('data_end_date'):
             parameters['dataEndDate'] = params['data_end_date']
 
         async with semaphore:
+            logging.debug("Running outlier detection for organisation unit: %s for dataset %s", params['ou'],
+                          params['outlier_dataset'])
+            full_url = f"{url}?{'&'.join([f'{k}={v}' for k, v in parameters])}"
+            logging.debug("Full URL: %s", full_url)
             async with session.get(url, params=parameters) as response:
                 response.raise_for_status()
                 outlier_json = await response.json()
+                #Log any unexpected response that is not a 200
+                if response.status != 200:
+                    logging.error(f"Unexpected response status: {response.status}")
+                    logging.error(f"Response content: {await response.text()}")
 
         return self._process_outlier_results(outlier_json, params['destination_data_element'], params['lower_bound'])
 

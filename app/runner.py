@@ -96,7 +96,11 @@ class DataQualityMonitor:
             logging.info("All stages completed")
             logging.info(f"Process took: {clock_end - clock_start}")
 
-        return errors
+        return {
+            "errors": errors,
+            "data_values_posted": len(all_data_values),
+            "duration": str(clock_end - clock_start)
+        }
 
 
 def run_main():
