@@ -11,12 +11,9 @@ def save_config(config_path, config):
         yaml.dump(config, f)
 
 def resolve_uid_name(fetch_fn, uid):
-    """
-    Try to fetch an object's name using its UID via the given fetch function.
-    Falls back to the UID if the name cannot be resolved.
-    """
     try:
         obj = fetch_fn(uid)
         return obj.get("name", uid)
-    except requests.exceptions.RequestException:
+    except Exception as e:
+        print(f"[resolve_uid_name] Failed to resolve UID {uid}: {e}")
         return uid

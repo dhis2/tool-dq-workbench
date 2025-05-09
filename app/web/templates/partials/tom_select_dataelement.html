@@ -1,18 +1,20 @@
 <script>
-  new TomSelect("#dataelement", {
-    valueField: "id",
-    labelField: "text",
-    searchField: "text",
-    load: function(query, callback) {
-      if (query.length < 3) return callback();
-      fetch(`/api/data-elements?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(callback)
-        .catch(() => callback());
-    },
-    preload: true,
-    {% if stage.params.destination_data_element %}
-    items: ["{{ stage.params.destination_data_element }}"],
-    {% endif %}
+  document.addEventListener("DOMContentLoaded", function () {
+    new TomSelect("#dataelement", {
+      valueField: "id",
+      labelField: "text",
+      searchField: "text",
+      load: function(query, callback) {
+        if (query.length < 3) return callback();
+        fetch(`/api/data-elements?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(callback)
+          .catch(() => callback());
+      },
+      preload: true,
+      {% if stage.params.destination_data_element %}
+      items: ["{{ stage.params.destination_data_element }}"],
+      {% endif %}
+    });
   });
 </script>

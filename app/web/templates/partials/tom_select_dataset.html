@@ -1,4 +1,5 @@
 <script>
+  document.addEventListener("DOMContentLoaded", function () {
   new TomSelect("#dataset", {
     valueField: "id",
     labelField: "text",
@@ -15,4 +16,5 @@
     items: ["{{ stage.params.dataset }}"],
     {% endif %}
   });
+    });
 </script>

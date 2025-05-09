@@ -38,6 +38,7 @@ class Dhis2ApiUtils:
         url = f"{self.base_url}/api/{endpoint}.json?fields=id,name&paging=false"
         if query:
             url += f"&filter=name:ilike:{query}"
+        logging.debug(f"Fetching metadata from URL: {url}")
         resp = requests.get(url, headers=self.request_headers)
         resp.raise_for_status()
         return resp.json().get(key, [])
@@ -47,7 +48,7 @@ class Dhis2ApiUtils:
         Fetch a single metadata item (e.g., dataElement) by UID.
         """
         # Supported endpoints
-        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups'}
+        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups', 'categoryOptionCombos'}
         if endpoint not in allowed_endpoints:
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
@@ -55,7 +56,7 @@ class Dhis2ApiUtils:
         if not uid.isalnum() or len(uid) != 11 or not uid[0].isalpha():
             raise ValueError(f"Invalid UID: {uid}")
 
-        url = urljoin(self.base_url, f"/api/{endpoint}/{uid}?fields=id,name")
+        url = f"{self.base_url.rstrip('/')}/api/{endpoint}/{uid}?fields=id,name"
 
         response = requests.get(url, headers=self.request_headers)
         response.raise_for_status()
@@ -79,6 +80,9 @@ class Dhis2ApiUtils:
 
     def fetch_validation_rule_group_by_id(self, uid):
         return self.fetch_metadata_item_by_id('validationRuleGroups', uid)
+
+    def fetch_category_option_combo_by_id(self, uid):
+        return self.fetch_metadata_item_by_id('categoryOptionCombos', uid)
 
     # --- Import Summary Logging ---
     @staticmethod

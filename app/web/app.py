@@ -168,7 +168,9 @@ def create_app(config_path):
         de_uid = stage['params'].get('destination_data_element')
         ds_uid = stage['params'].get('dataset')
         de_name = resolve_uid_name(api_utils.fetch_data_element_by_id, de_uid)
+        print("Data element name:", de_name)
         ds_name = resolve_uid_name(api_utils.fetch_dataset_by_id, ds_uid)
+        print("dataset name:", ds_name)
 
         if stage.get('type') != 'outlier':
             flash('Only outlier stages can be edited here.', 'danger')

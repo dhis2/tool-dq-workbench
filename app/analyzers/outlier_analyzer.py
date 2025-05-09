@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime
 from app.analyzers.stage_analyzer import StageAnalyzer
@@ -22,9 +23,8 @@ class OutlierAnalyzer(StageAnalyzer):
 
             max_results = params.get('max_results', self.config['server'].get('max_results', 500))
 
-            query_params = {
+            query_common = {
                 'outlier_dataset': params['dataset'],
-                'organisation_unit': ous,
                 'start_date': start_date.strftime('%Y-%m-%d'),
                 'end_date': end_date.strftime('%Y-%m-%d'),
                 'data_start_date': params.get('data_start_date'),
@@ -36,7 +36,24 @@ class OutlierAnalyzer(StageAnalyzer):
                 'lower_bound': params.get('lower_bound', 0)
             }
 
-            return await self._run_outlier_dataset_stage_async(session, query_params, semaphore)
+            tasks = [
+                self._run_outlier_dataset_stage_async(session, {**query_common, 'ou': ou}, semaphore)
+                for ou in ous
+            ]
+
+            results_nested = await asyncio.gather(*tasks, return_exceptions=True)
+            results = []
+            for i, result in enumerate(results_nested):
+                if isinstance(result, Exception):
+                    logging.error(f"Outlier detection failed for OU '{ous[i]}': {result}")
+                    continue
+                if isinstance(result, list):
+                    results.extend(result)
+                else:
+                    logging.warning(f"Unexpected result for OU '{ous[i]}': {type(result)}")
+
+            return results
+
 
         except Exception as e:
             logging.error(f"Error running outlier stage '{stage['name']}': {e}")
@@ -44,17 +61,17 @@ class OutlierAnalyzer(StageAnalyzer):
 
     async def _run_outlier_dataset_stage_async(self, session, params, semaphore):
         url = f"{self.base_url}/api/outlierDetection"
-        parameters = {
-            'ds': params['outlier_dataset'],
-            'ou': params['organisation_unit'],
-            'startDate': params['start_date'],
-            'endDate': params['end_date'],
-            'algorithm': params['algorithm'],
-            'maxResults': params['max_results'],
-            'orderBy': 'MEAN_ABS_DEV',
-            'threshold': params['threshold']
-        }
-
+        parameters = [
+            ('ds', params['outlier_dataset']),
+            ('startDate', params['start_date']),
+            ('endDate', params['end_date']),
+            ('algorithm', params['algorithm']),
+            ('maxResults', str(params['max_results'])),
+            ('orderBy', 'MEAN_ABS_DEV'),
+            ('threshold', str(params['threshold'])),
+            ('ou', params['ou'])
+        ]
+        logging.info("Running outlier detection for organisation unit: %s for stage %s", params['ou'], params['outlier_dataset'])
         if params.get('data_start_date'):
             parameters['dataStartDate'] = params['data_start_date']
         if params.get('data_end_date'):

@@ -1,4 +1,5 @@
 <script>
+  document.addEventListener("DOMContentLoaded", function () {
   new TomSelect("#validation_rule_groups", {
     valueField: "id",
     labelField: "text",
@@ -15,4 +16,5 @@
     items: ["{{ stage.params.validation_rule_groups }}"],
     {% endif %}
   });
+      });
 </script>
