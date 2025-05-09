@@ -1,5 +1,6 @@
 import logging
 import requests
+from urllib.parse import urljoin
 
 class Dhis2ApiUtils:
     def __init__(self, base_url, d2_token=None):
@@ -45,7 +46,17 @@ class Dhis2ApiUtils:
         """
         Fetch a single metadata item (e.g., dataElement) by UID.
         """
-        url = f"{self.base_url}/api/{endpoint}/{uid}?fields=id,name"
+        # Supported endpoints
+        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups'}
+        if endpoint not in allowed_endpoints:
+            raise ValueError(f"Invalid endpoint: {endpoint}")
+
+        # Validate UID
+        if not uid.isalnum() or len(uid) != 11 or not uid[0].isalpha():
+            raise ValueError(f"Invalid UID: {uid}")
+
+        url = urljoin(self.base_url, f"/api/{endpoint}/{uid}?fields=id,name")
+
         response = requests.get(url, headers=self.request_headers)
         response.raise_for_status()
         return response.json()
