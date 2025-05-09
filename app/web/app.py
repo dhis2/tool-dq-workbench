@@ -27,7 +27,12 @@ def default_outlier_stage():
 
 def create_app(config_path):
     app = Flask(__name__)
-    app.secret_key = 'change-this-key'
+    secret_key = os.environ.get('FLASK_SECRET_KEY')
+    if not secret_key:
+        print("Warning: FLASK_SECRET_KEY not set. Using a temporary key for development.")
+        secret_key = os.urandom(24)
+
+    app.secret_key = secret_key
     app.config['CONFIG_PATH'] = os.path.abspath(config_path)
 
     @app.route('/')
