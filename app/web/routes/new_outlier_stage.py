@@ -58,6 +58,6 @@ def new_outlier_stage_view():
         config['stages'].append(new_stage)
         save_config(server_config_path, config)
         flash('New outlier stage added.', 'success')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('api.index'))
 
     return render_template("stage_form_outlier.html", stage=default_outlier_stage(), edit=False)

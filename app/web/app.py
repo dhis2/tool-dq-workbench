@@ -1,16 +1,8 @@
 import argparse
 import os
-import subprocess
-from copy import deepcopy
-
-import requests.exceptions
-import yaml
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-
-from app.core.api_utils import Dhis2ApiUtils
-from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
+from flask import Flask
 from .routes import register_routes
-
+from app.core.config_loader import ConfigManager
 
 def _configure_secret_key(app):
     secret_key = os.environ.get('FLASK_SECRET_KEY')
@@ -19,6 +11,12 @@ def _configure_secret_key(app):
         secret_key = os.urandom(24)
     app.secret_key = secret_key
 def _configure_app(app, config_path):
+    config_path = os.path.abspath(config_path)
+    try:
+        ConfigManager(config_path)
+    except Exception as e:
+        print(f"Failed to start due to invalid configuration:\n{e}")
+        exit(1)
     app.config['CONFIG_PATH'] = os.path.abspath(config_path)
 
 def create_app(config_path):

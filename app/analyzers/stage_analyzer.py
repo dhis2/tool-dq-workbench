@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 from app.core.period_utils import Dhis2PeriodUtils
 from app.core.api_utils import Dhis2ApiUtils
+import re
+from app.core.time_unit import TimeUnit
+from typing import Optional
 
 class StageAnalyzer(ABC):
     def __init__(self, config, base_url, headers):
@@ -25,3 +28,17 @@ class StageAnalyzer(ABC):
 
     async def get_organisation_units_at_level(self, level, session):
         return await self.api_utils.get_organisation_units_at_level(level, session)
+
+    @staticmethod
+    def validate_duration_string(value: str) -> Optional[str]:
+        match = re.match(r"^\s*(\d+)\s+(\w+)\s*$", value.strip(), re.IGNORECASE)
+        if not match:
+            return "Expected format like '12 monthly', '1 yearly', etc."
+
+        amount, unit = match.groups()
+        if int(amount) <= 0:
+            return "Duration must be greater than 0."
+        if unit.lower() not in PeriodType.list():
+            return f"Invalid period type '{unit}'. Must be one of: {', '.join(PeriodType.list())}"
+
+        return None

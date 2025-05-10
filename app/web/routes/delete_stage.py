@@ -15,4 +15,4 @@ def delete_stage_view(stage_index):
     else:
         flash("Invalid stage index", 'danger')
 
-    return redirect(url_for('index.index'))
+    return redirect(url_for('api.index'))

@@ -66,17 +66,28 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         try:
             async with semaphore:
                 logging.debug("Running validation rule analysis for ou '%s' and vrg '%s'", ou, vrg)
+                logging.debug("Making POST request to URL: %s", url)
+                logging.debug("Request body: %s", body)
                 async with session.post(url, json=body) as response:
                     if response.status >= 400:
                         text = await response.text()
                         raise RuntimeError(f"{response.status} from DHIS2: {response.url} — {text.strip()}")
                     response_data = await response.json()
         except Exception as e:
-            return e  # Let parent gather() handle it
+            logging.error(f"Error fetching validation rule analysis: {e}")
+            return e
 
-        # Count violations by (orgUnit, period)
+        # ✅ Safe-check and normalize
+        if not isinstance(response_data, list):
+            logging.warning(f"Expected list from DHIS2 validation API but got {type(response_data)}: {response_data}")
+            return []
+
         violations = {}
         for result in response_data:
+            if 'organisationUnitId' not in result or 'periodId' not in result:
+                logging.warning(f"Skipping malformed result: {result}")
+                continue
+
             key = (result['organisationUnitId'], result['periodId'])
             violations[key] = violations.get(key, 0) + 1
 
@@ -87,3 +98,4 @@ class ValidationRuleAnalyzer(StageAnalyzer):
             'categoryOptionCombo': self.default_coc,
             'value': count
         } for (ou_id, period_id), count in violations.items()]
+

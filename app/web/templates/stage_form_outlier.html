@@ -10,6 +10,7 @@
 {% endblock %}
 
 {% block content %}
+ {% include "partials/_flashes.html" %}
   <h1>{{ 'Edit' if edit else 'Create' }} Outlier Stage</h1>
 
   <form method="post">

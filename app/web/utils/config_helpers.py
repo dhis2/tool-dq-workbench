@@ -1,12 +1,14 @@
 # web/utils/config_helpers.py
 import requests.exceptions
 import yaml
+from app.core.config_loader import ConfigManager
 
 def load_config(config_path):
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+    manager = ConfigManager(config_path)
+    return manager.config
 
 def save_config(config_path, config):
+    ConfigManager.validate_dict(config)
     with open(config_path, 'w') as f:
         yaml.dump(config, f)
 

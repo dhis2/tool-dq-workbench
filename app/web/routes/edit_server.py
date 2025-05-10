@@ -20,7 +20,7 @@ def edit_server():
         save_config(config_path, config)
 
         flash('Server configuration updated.', 'success')
-        return redirect(url_for('index.index'))
+        return redirect(url_for('api.index'))
 
     config = load_config(config_path)
     return render_template("edit_server.html", server=config['server'])

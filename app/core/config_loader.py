@@ -1,24 +1,29 @@
 import yaml
 
 from app.core.api_utils import Dhis2ApiUtils
-
+import re
+from app.core.time_unit import TimeUnit
+import logging
 
 class ConfigManager:
     def __init__(self, config_path):
         with open(config_path, 'r') as stream:
             self.config = yaml.safe_load(stream)
-        self._validate_config()
+        logging.debug("Config loaded: %s", self.config)
+        self.validate_dict(self.config)
+        logging.debug("Finished config validation")
 
 
-    def _validate_config(self):
-        self._validate_default_coc(self.config)
-        if 'stages' not in self.config:
+    @classmethod
+    def validate_dict(cls, config: dict):
+        cls._validate_default_coc(config)
+        if 'stages' not in config:
             raise ValueError("No stages defined in configuration")
 
-
-        for stage in self.config['stages']:
-            self._validate_stage(stage)
-            self._validate_stage_params(stage)
+        for stage in config['stages']:
+            cls._validate_stage(stage)
+            cls._validate_stage_params(stage)
+            cls._is_valid_duration(stage['duration'], stage['name'])
 
 
     @staticmethod
@@ -63,3 +68,20 @@ class ConfigManager:
         if not api_utils.fetch_category_option_combo_by_id(default_coc):
             raise ValueError(f"Default category option combo '{default_coc}' does not exist in the system.")
 
+    @staticmethod
+    def _is_valid_duration(value: str, stage_name: str) -> None:
+        logging.debug("Validating duration for stage '%s': '%s'", stage_name, value)
+        match = re.match(r"^\s*(\d+)\s+(\w+)\s*$", value.strip(), re.IGNORECASE)
+        if not match:
+            raise ValueError(
+                f"Invalid duration format in stage '{stage_name}': '{value}'. "
+                "Expected format like '12 monthly', '1 yearly', etc."
+            )
+        amount, unit = match.groups()
+        if int(amount) <= 0:
+            raise ValueError(f"Duration must be > 0 in stage '{stage_name}'")
+        if unit.lower() not in TimeUnit.list():
+            raise ValueError(
+                f"Invalid period type '{unit}' in stage '{stage_name}'. "
+                f"Must be one of: {', '.join(TimeUnit.list())}"
+            )
