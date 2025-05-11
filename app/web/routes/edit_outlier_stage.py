@@ -4,7 +4,7 @@ import requests
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 from app.core.config_loader import ConfigManager
 
 @api_bp.route('/edit-outlier-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_outlier_stage')
@@ -14,13 +14,13 @@ def edit_outlier_stage_view(stage_index):
         config = load_config(config_path)
     except ValueError as e:
         flash(str(e), 'danger')
-        return redirect(url_for('api.index'))
+        return redirect(url_for('ui.index'))
 
     stage = config['stages'][stage_index]
 
     if stage.get('type') != 'outlier':
         flash('Only outlier stages can be edited here.', 'danger')
-        return redirect(url_for('api.index'))
+        return redirect(url_for('ui.index'))
 
     api_utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
@@ -43,8 +43,8 @@ def edit_outlier_stage_view(stage_index):
         flash(f"Warning: Failed to fetch dataset name for {ds_uid}", 'warning')
 
     if request.method == 'POST':
-        stage['name'] = request.form['name']
-        stage['level'] = int(request.form['level'])
+        stage['name'] = request.form['stage_name']
+        stage['level'] = int(request.form['orgunit_level'])
         stage['duration'] = request.form['duration']
         stage['params']['dataset'] = request.form['dataset']
         stage['params']['algorithm'] = request.form['algorithm']
@@ -52,10 +52,10 @@ def edit_outlier_stage_view(stage_index):
         stage['params']['destination_data_element'] = request.form['destination_data_element']
 
         try:
-            ConfigManager.validate_dict(config)  # validate before saving
+            ConfigManager.validate_structure(config)
             save_config(config_path, config)
             flash(f"Updated outlier stage: {stage['name']}", 'success')
-            return redirect(url_for('api.index'))
+            return redirect(url_for('ui.index'))
         except ValueError as e:
             flash(f"Error saving config: {e}", 'danger')
             # Fall through to re-render the form

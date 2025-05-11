@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, redirect, url_for, flash
 from app.web.utils.config_helpers import load_config, save_config
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 
 
 @api_bp.route('/delete-stage/<int:stage_index>', methods=['POST'], endpoint ='delete_stage')
@@ -15,4 +15,4 @@ def delete_stage_view(stage_index):
     else:
         flash("Invalid stage index", 'danger')
 
-    return redirect(url_for('api.index'))
+    return redirect(url_for('ui.index'))

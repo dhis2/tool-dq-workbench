@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, render_template, flash, jsonify
 from app.runner import DataQualityMonitor
 from app.web.utils.config_helpers import load_config
 
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 
 @api_bp.route('/run', methods=['POST'], endpoint='run')
 def run_now():

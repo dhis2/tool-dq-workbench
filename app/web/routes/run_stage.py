@@ -4,7 +4,7 @@ from copy import deepcopy
 from flask import current_app, jsonify
 
 from app.runner import DataQualityMonitor
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 from app.web.utils.config_helpers import load_config
 
 @api_bp.route('/run-stage/<int:stage_index>', methods=['POST'], endpoint='run_stage')

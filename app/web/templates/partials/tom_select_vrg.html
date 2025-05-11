@@ -1,6 +1,8 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-  new TomSelect("#validation_rule_groups", {
+      const vrgEl = document.getElementById("validation_rule_groups");
+    if (!vrgEl) return;
+  new TomSelect(vrgEl, {
     valueField: "id",
     labelField: "text",
     searchField: "text",

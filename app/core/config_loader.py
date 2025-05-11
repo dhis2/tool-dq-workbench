@@ -6,26 +6,53 @@ from app.core.time_unit import TimeUnit
 import logging
 
 class ConfigManager:
-    def __init__(self, config_path):
+    def __init__(self, config_path, validate_structure=True, validate_runtime=True):
         with open(config_path, 'r') as stream:
-            self.config = yaml.safe_load(stream)
-        logging.debug("Config loaded: %s", self.config)
-        self.validate_dict(self.config)
-        logging.debug("Finished config validation")
+            config = yaml.safe_load(stream)
 
+        self.config = config
+        if validate_structure:
+            self.validate_structure(config)
+
+        if validate_runtime:
+            self._validate_runtime(config)
 
     @classmethod
-    def validate_dict(cls, config: dict):
+    def _validate_runtime(cls, config):
+        # Check base_url format
+        url = config['server'].get('base_url', '')
+        if not url.startswith(('http://', 'https://')):
+            raise ValueError(f"Invalid base URL: '{url}'. Must start with http:// or https://")
+        if url.endswith('/'):
+            raise ValueError("Base URL should not end with a slash")
+
+        # Attempt to ping the server
+        api_utils = Dhis2ApiUtils(url, config['server'].get('d2_token', ''))
+        if not api_utils.ping():
+            raise ValueError("DHIS2 server is unreachable or token is invalid (ping failed)")
+
         cls._validate_default_coc(config)
+
+    @classmethod
+    def validate_structure(cls, config: dict):
+        cls._validate_base_url(config['server']['base_url'])
+        cls._validate_api_token(config['server']['base_url'], config['server']['d2_token'])
+
         if 'stages' not in config:
             raise ValueError("No stages defined in configuration")
-
+        cls._validate_unique_stage_name(config)
         for stage in config['stages']:
             cls._validate_stage(stage)
             cls._validate_stage_params(stage)
             cls._is_valid_duration(stage['duration'], stage['name'])
 
 
+    @staticmethod
+    def _validate_unique_stage_name(config):
+        stage_names = [stage['name'] for stage in config['stages']]
+        duplicates = set([name for name in stage_names if stage_names.count(name) > 1])
+        if duplicates:
+            raise ValueError(f"Duplicate stage names found: {', '.join(duplicates)}")
     @staticmethod
     def _validate_stage_params(stage):
         params = stage['params']
@@ -54,6 +81,7 @@ class ConfigManager:
             raise ValueError(f"Stage '{stage['name']}' missing 'duration'")
         if 'params' not in stage:
             raise ValueError(f"Stage '{stage['name']}' missing 'params' section")
+
 
     @staticmethod
     def _validate_default_coc(config):
@@ -85,3 +113,21 @@ class ConfigManager:
                 f"Invalid period type '{unit}' in stage '{stage_name}'. "
                 f"Must be one of: {', '.join(TimeUnit.list())}"
             )
+    @staticmethod
+    def _validate_base_url(url: str):
+        if not url.startswith("http://") and not url.startswith("https://"):
+            raise ValueError(f"Base URL must start with http:// or https://: '{url}'")
+        if url.endswith("/"):
+            raise ValueError(f"Base URL must not end with a trailing slash: '{url}'")
+
+    @staticmethod
+    def _validate_api_token(base_url: str, d2_token: str):
+        import requests
+        try:
+            headers = {'Authorization': f'ApiToken {d2_token}'}
+            ping_url = f"{base_url}/api/ping"
+            response = requests.get(ping_url, headers=headers, timeout=5)
+            if response.status_code != 200:
+                raise ValueError(f"Invalid DHIS2 API token or server unreachable: {ping_url}")
+        except requests.RequestException as e:
+            raise ValueError(f"Failed to connect to DHIS2 API: {e}")

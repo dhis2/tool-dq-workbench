@@ -84,6 +84,13 @@ class Dhis2ApiUtils:
     def fetch_category_option_combo_by_id(self, uid):
         return self.fetch_metadata_item_by_id('categoryOptionCombos', uid)
 
+    def ping(self):
+        try:
+            response = requests.get(f"{self.base_url}/api/system/ping", headers=self.request_headers)
+            return response.status_code == 200
+        except requests.exceptions.RequestException:
+            return False
+
     # --- Import Summary Logging ---
     @staticmethod
     def parse_import_summary(import_summary):

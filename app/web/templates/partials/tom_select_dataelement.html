@@ -1,6 +1,9 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-    new TomSelect("#dataelement", {
+      const dataElementEl = document.getElementById("destination_data_element");
+    if (!dataElementEl) return;
+
+    new TomSelect(dataElementEl, {
       valueField: "id",
       labelField: "text",
       searchField: "text",

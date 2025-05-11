@@ -1,20 +1,23 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-  new TomSelect("#dataset", {
-    valueField: "id",
-    labelField: "text",
-    searchField: "text",
-    load: function(query, callback) {
-      if (query.length < 3) return callback();
-      fetch(`/api/datasets?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(callback)
-        .catch(() => callback());
-    },
-    preload: true,
-    {% if stage.params.dataset %}
-    items: ["{{ stage.params.dataset }}"],
-    {% endif %}
-  });
+    const datasetEl = document.getElementById("dataset");
+    if (!datasetEl) return;
+
+    new TomSelect(datasetEl, {
+      valueField: "id",
+      labelField: "text",
+      searchField: "text",
+      load: function(query, callback) {
+        if (query.length < 3) return callback();
+        fetch(`/api/datasets?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(callback)
+          .catch(() => callback());
+      },
+      preload: true,
+      {% if stage.params and stage.params.dataset %}
+      items: ["{{ stage.params.dataset }}"],
+      {% endif %}
     });
+  });
 </script>

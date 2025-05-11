@@ -5,7 +5,7 @@ import requests
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
 from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 
 @api_bp.route('/edit-validation-rule-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_validation_rule_stage')
 def edit_validation_rule_stage_view(stage_index):
@@ -16,7 +16,7 @@ def edit_validation_rule_stage_view(stage_index):
 
     if stage.get('type') != 'validation_rules':
         flash('Only validation rule stages can be edited here.', 'danger')
-        return redirect(url_for('api.index'))
+        return redirect(url_for('ui.index'))
 
     api_utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
@@ -39,18 +39,18 @@ def edit_validation_rule_stage_view(stage_index):
         flash(f"Warning: Failed to fetch validation rule group name for {vrg_uid}", 'warning')
 
     if request.method == 'POST':
-        stage['name'] = request.form['name']
-        stage['level'] = int(request.form['level'])
+        stage['name'] = request.form['stage_name']
+        stage['level'] = int(request.form['orgunit_level'])
         stage['duration'] = request.form['duration']
         stage['params']['validation_rule_groups'] = request.form['validation_rule_groups']
         stage['params']['period_type'] = request.form['period_type']
         stage['params']['destination_data_element'] = request.form['destination_data_element']
 
         try:
-            ConfigManager.validate_dict(config)  # validate before saving
+            ConfigManager.validate_structure(config)  # validate before saving
             save_config(config_path, config)
             flash(f"Updated validation rule stage: {stage['name']}", 'success')
-            return redirect(url_for('api.index'))
+            return redirect(url_for('ui.index'))
         except ValueError as e:
             flash(f"Error saving config: {e}", 'danger')
             # Fall through to re-render the form

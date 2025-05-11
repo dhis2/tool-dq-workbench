@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, request, render_template, redirect, url_for, flash
 from app.web.utils.config_helpers import load_config, save_config
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 
 @api_bp.route('/edit-server', methods=['GET', 'POST'], endpoint='edit_server')
 def edit_server():
@@ -20,7 +20,7 @@ def edit_server():
         save_config(config_path, config)
 
         flash('Server configuration updated.', 'success')
-        return redirect(url_for('api.index'))
+        return redirect(url_for('ui.index'))
 
     config = load_config(config_path)
     return render_template("edit_server.html", server=config['server'])

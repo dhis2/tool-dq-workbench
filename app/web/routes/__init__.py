@@ -1,8 +1,8 @@
 # app/web/routes/__init__.py
 
-from .api_blueprint import api_bp
+from .api import api_bp
+from .ui_blueprint import ui_bp
 
-# Import all route modules so they attach routes to `api_bp`
 from . import (
     index,
     run,
@@ -18,3 +18,4 @@ from . import (
 
 def register_routes(app):
     app.register_blueprint(api_bp)
+    app.register_blueprint(ui_bp)

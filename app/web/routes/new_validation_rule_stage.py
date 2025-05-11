@@ -1,6 +1,6 @@
 from flask import Blueprint, current_app, request, render_template, redirect, url_for, flash
 
-from app.web.routes.api_blueprint import api_bp
+from app.web.routes.api import api_bp
 from app.web.utils.config_helpers import load_config, save_config
 
 
@@ -12,9 +12,9 @@ def new_validation_rule_stage_view():
         config = load_config(server_config_path)
 
         new_stage = {
-            'name': request.form['name'],
+            'name': request.form['stage_name'],
             'type': 'validation_rules',
-            'level': int(request.form['level']),
+            'level': int(request.form['orgunit_level']),
             'duration': request.form['duration'],
             'params': {
                 'validation_rule_groups': request.form['validation_rule_groups'],
