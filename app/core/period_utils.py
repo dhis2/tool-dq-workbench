@@ -33,7 +33,7 @@ class Dhis2PeriodUtils:
     def current_monthly_period(date=None):
         if date is None:
             date = datetime.now()
-        else:
+        elif isinstance(date, str):
             date = datetime.strptime(date, "%Y-%m-%d")
         return date.strftime("%Y%m")
 
@@ -41,7 +41,7 @@ class Dhis2PeriodUtils:
     def current_weekly_period(date=None):
         if date is None:
             date = datetime.now()
-        else:
+        elif isinstance(date, str):
             date = datetime.strptime(date, "%Y-%m-%d")
         return date.strftime("%GW%V")
 
@@ -49,14 +49,35 @@ class Dhis2PeriodUtils:
     def current_daily_period(date=None):
         if date is None:
             date = datetime.now()
+        elif isinstance(date, str):
+            date = datetime.strptime(date, "%Y-%m-%d")
         return date.strftime("%Y%m%d")
 
     @staticmethod
     def current_quarterly_period(date=None):
         if date is None:
             date = datetime.now()
+        elif isinstance(date, str):
+            date = datetime.strptime(date, "%Y-%m-%d")
         quarter = (date.month - 1) // 3 + 1
         return f"{date.year}Q{quarter}"
+
+    def get_current_period(self, period_type, date=None):
+        if date is None:
+            date = datetime.now()
+        elif isinstance(date, str):
+            date = datetime.strptime(date, "%Y-%m-%d")
+
+        if period_type == 'Monthly':
+            return self.current_monthly_period(date)
+        elif period_type == 'Weekly':
+            return self.current_weekly_period(date)
+        elif period_type == 'Daily':
+            return self.current_daily_period(date)
+        elif period_type == 'Quarterly':
+            return self.current_quarterly_period(date)
+        else:
+            raise ValueError("Unsupported period type")
 
 
     def get_previous_periods(self, period, period_type, number_of_periods):

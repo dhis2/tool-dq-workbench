@@ -6,6 +6,7 @@ from datetime import datetime
 
 import aiohttp
 
+from app.analyzers.integrity_analyzer import IntegrityCheckAnalyzer
 from app.analyzers.outlier_analyzer import OutlierAnalyzer
 from app.analyzers.rule_analyzer import ValidationRuleAnalyzer
 from app.core.config_loader import ConfigManager
@@ -27,7 +28,8 @@ class DataQualityMonitor:
         # Map stage types to analyzer instances
         self.analyzers = {
             'outlier': OutlierAnalyzer(config, self.base_url, self.request_headers),
-            'validation_rules': ValidationRuleAnalyzer(config, self.base_url, self.request_headers)
+            'validation_rules': ValidationRuleAnalyzer(config, self.base_url, self.request_headers),
+            'integrity_checks': IntegrityCheckAnalyzer(config, self.base_url, self.request_headers)
         }
 
         self.api_utils = Dhis2ApiUtils(self.base_url, self.d2_token)

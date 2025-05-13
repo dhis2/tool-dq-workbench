@@ -31,3 +31,10 @@ stages:
     destination_data_element: bH4u3bXfboi
     threshold: 5
   type: outlier
+- duration: 12 months
+  level: 1
+  name: Metadata integrity
+  params:
+    monitoring_group: yNpUqX1BiFC
+    "period_type": "Monthly"
+  type: integrity_checks

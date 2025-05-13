@@ -53,6 +53,7 @@ class ConfigManager:
         duplicates = set([name for name in stage_names if stage_names.count(name) > 1])
         if duplicates:
             raise ValueError(f"Duplicate stage names found: {', '.join(duplicates)}")
+
     @staticmethod
     def _validate_stage_params(stage):
         params = stage['params']
@@ -63,6 +64,8 @@ class ConfigManager:
             required = ['dataset', 'algorithm', 'destination_data_element']
         elif stage_type == 'min_max':
             required = ['dataset', 'destination_data_element']
+        elif stage_type == 'integrity_checks':
+            required = ['monitoring_group', 'period_type']
         else:
             raise ValueError(f"Unknown stage type '{stage_type}' in stage '{stage['name']}'")
         for param in required:

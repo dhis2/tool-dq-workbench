@@ -1,4 +1,7 @@
 import logging
+import random
+import string
+
 import requests
 from urllib.parse import urljoin
 
@@ -117,3 +120,12 @@ class Dhis2ApiUtils:
                 "status": import_summary.get('status', 'UNKNOWN'),
                 "error": import_summary
             }
+    @staticmethod
+    def generate_uid():
+        first_letter = random.choice(string.ascii_lowercase)
+        last_part = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        return first_letter + last_part
+
+
+def generate_uid():
+    return None
