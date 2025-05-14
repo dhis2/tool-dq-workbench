@@ -51,7 +51,7 @@ class Dhis2ApiUtils:
         Fetch a single metadata item (e.g., dataElement) by UID.
         """
         # Supported endpoints
-        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups', 'categoryOptionCombos'}
+        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups', 'categoryOptionCombos', 'dataElementGroups'}
         if endpoint not in allowed_endpoints:
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
@@ -75,8 +75,14 @@ class Dhis2ApiUtils:
     def fetch_validation_rule_groups(self, query=None):
         return self.fetch_metadata_list('validationRuleGroups', 'validationRuleGroups', query)
 
+    def fetch_data_element_groups(self, query=None):
+        return self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', query)
+
     def fetch_data_element_by_id(self, uid):
         return self.fetch_metadata_item_by_id('dataElements', uid)
+
+    def fetch_data_element_group_by_id(self, uid):
+        return self.fetch_metadata_item_by_id('dataElementGroups', uid)
 
     def fetch_dataset_by_id(self, uid):
         return self.fetch_metadata_item_by_id('dataSets', uid)

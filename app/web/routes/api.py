@@ -46,3 +46,17 @@ def api_validation_rule_groups():
         return jsonify([{"id": g["id"], "text": g["name"]} for g in groups[:20]])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/data-element-groups')
+def api_data_element_groups():
+    config = load_config(current_app.config['CONFIG_PATH'])
+    utils = Dhis2ApiUtils(
+        base_url=config['server']['base_url'],
+        d2_token=config['server']['d2_token']
+    )
+    query = request.args.get('q', '').strip()
+    try:
+        groups = utils.fetch_data_element_groups(query)
+        return jsonify([{"id": g["id"], "text": g["name"]} for g in groups[:20]])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

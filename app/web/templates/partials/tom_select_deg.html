@@ -1,0 +1,22 @@
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+      const degEl = document.getElementById("monitoring_group");
+    if (!degEl) return;
+  new TomSelect(degEl, {
+    valueField: "id",
+    labelField: "text",
+    searchField: "text",
+    load: function(query, callback) {
+      if (query.length < 3) return callback();
+      fetch(`/api/data-element-groups?q=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(callback)
+        .catch(() => callback());
+    },
+    preload: true,
+    {% if stage.params.monitoring_group %}
+    items: ["{{ stage.params.monitoring_group }}"],
+    {% endif %}
+  });
+      });
+</script>

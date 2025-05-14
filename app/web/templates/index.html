@@ -16,7 +16,10 @@
 <!-- Buttons -->
 <div class="mb-3">
   <a href="{{ url_for('api.new_outlier_stage') }}" class="btn btn-success btn-sm me-2">+ New Outlier Stage</a>
-  <a href="{{ url_for('api.new_validation_rule_stage') }}" class="btn btn-success btn-sm">+ New Validation Rule Stage</a>
+  <a href="{{ url_for('api.new_validation_rule_stage') }}" class="btn btn-success btn-sm me-2">+ New Validation Rule Stage</a>
+  {% if not integrity_stage_exists %}
+    <a href="{{ url_for('api.new_integrity_stage') }}" class="btn btn-success btn-sm">+ New Integrity Stage</a>
+  {% endif %}
 </div>
 
 <!-- Stage Table -->
@@ -42,6 +45,8 @@
         <a href="{{ url_for('api.edit_outlier_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
         {% elif stage.type == 'validation_rules' %}
         <a href="{{ url_for('api.edit_validation_rule_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+        {% elif stage.type == 'integrity_checks' %}
+        <a href="{{ url_for('api.edit_integrity_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
         {% endif %}
         <form method="POST" action="{{ url_for('api.delete_stage', stage_index=loop.index0) }}"
               onsubmit="return confirm('Delete this stage?');" class="d-inline">

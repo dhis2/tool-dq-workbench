@@ -36,5 +36,5 @@ stages:
   name: Metadata integrity
   params:
     monitoring_group: yNpUqX1BiFC
-    "period_type": "Monthly"
+    period_type: "Monthly"
   type: integrity_checks

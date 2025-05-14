@@ -13,6 +13,8 @@ from . import (
     edit_outlier_stage,
     edit_validation_rule_stage,
     delete_stage,
+    new_integrity_stage,
+    edit_integrity_stage,
     api
 )
 

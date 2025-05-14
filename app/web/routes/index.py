@@ -7,4 +7,6 @@ from .ui_blueprint import ui_bp
 def index():
     with open(current_app.config['CONFIG_PATH']) as f:
         config = yaml.safe_load(f)
-    return render_template("index.html", config=config)
+    integrity_stage_exists = any(stage.get('type') == 'integrity_checks' for stage in config['stages'])
+
+    return render_template("index.html", config=config, integrity_stage_exists=integrity_stage_exists)
