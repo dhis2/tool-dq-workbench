@@ -68,4 +68,4 @@ def new_integrity_stage_view():
                 deg_name=deg_name
             )
 
-    return render_template("stage_form_outlier.html", stage=default_integrity_stage(), edit=False)
+    return render_template("stage_form_integrity_checks.html", stage=default_integrity_stage(), edit=False)
