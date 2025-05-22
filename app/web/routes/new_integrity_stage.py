@@ -24,8 +24,8 @@ def new_integrity_stage_view():
 
     if request.method == 'POST':
         config = load_config(server_config_path)
-        if 'stages' not in config:
-            config['stages'] = []
+        if 'analyzer_stages' not in config:
+            config['analyzer_stages'] = []
 
         deg_uid = request.form['monitoring_group']
         deg_name = deg_uid
@@ -53,7 +53,7 @@ def new_integrity_stage_view():
         }
 
         try:
-            config['stages'].append(new_stage)
+            config['analyzer_stages'].append(new_stage)
             ConfigManager.validate_structure(config)
             save_config(server_config_path, config)
             flash('New integrity stage added.', 'success')

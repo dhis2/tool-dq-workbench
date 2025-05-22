@@ -38,18 +38,22 @@ class ConfigManager:
         cls._validate_base_url(config['server']['base_url'])
         cls._validate_api_token(config['server']['base_url'], config['server']['d2_token'])
 
-        if 'stages' not in config:
-            raise ValueError("No stages defined in configuration")
+        if 'analyzer_stages' not in config:
+            raise ValueError("No analyzer stages defined in configuration")
         cls._validate_unique_stage_name(config)
-        for stage in config['stages']:
+        for stage in config['analyzer_stages']:
             cls._validate_stage(stage)
             cls._validate_stage_params(stage)
             cls._is_valid_duration(stage['duration'], stage['name'])
 
+        # Validate min_max stages
+        for stage in config['min_max_stages']:
+            cls._validate_min_max_stages(stage)
+
 
     @staticmethod
     def _validate_unique_stage_name(config):
-        stage_names = [stage['name'] for stage in config['stages']]
+        stage_names = [stage['name'] for stage in config['analyzer_stages']]
         duplicates = set([name for name in stage_names if stage_names.count(name) > 1])
         if duplicates:
             raise ValueError(f"Duplicate stage names found: {', '.join(duplicates)}")
@@ -134,3 +138,16 @@ class ConfigManager:
                 raise ValueError(f"Invalid DHIS2 API token or server unreachable: {ping_url}")
         except requests.RequestException as e:
             raise ValueError(f"Failed to connect to DHIS2 API: {e}")
+
+    @staticmethod
+    def _validate_min_max_stages(stage):
+        required_keys = ['name', 'dataset', 'orgunits', 'data_elements', 'threshold_factor', 'method']
+        for key in required_keys:
+            if key not in stage:
+               raise ValueError(f"Missing '{key}' in min_max_stage '{stage.get('name', '<unnamed>')}'")
+        if not isinstance(stage['org_unit_levels'], list):
+            raise ValueError(f"'org_unit_levels' must be a list in stage '{stage['name']}'")
+        if not isinstance(stage['data_elements'], list):
+            raise ValueError(f"'data_elements' must be a list in stage '{stage['name']}'")
+        if stage['method'] not in ['PREV_MAX', 'ZSCORE', 'MAD', 'BOXCOX']:
+            raise ValueError(f"Invalid method '{stage['method']}' in min_max_stage '{stage['name']}'")

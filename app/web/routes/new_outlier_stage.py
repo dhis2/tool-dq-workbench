@@ -26,8 +26,8 @@ def new_outlier_stage_view():
 
     if request.method == 'POST':
         config = load_config(server_config_path)
-        if 'stages' not in config:
-            config['stages'] = []
+        if 'analyzer_stages' not in config:
+            config['analyzer_stages'] = []
 
         data_element_id = request.form['destination_data_element']
         data_element_name = data_element_id
@@ -57,7 +57,7 @@ def new_outlier_stage_view():
         }
 
         try:
-            config['stages'].append(new_stage)
+            config['analyzer_stages'].append(new_stage)
             save_config(server_config_path, config)
             flash('New outlier stage added.', 'success')
             return redirect(url_for('ui.index'))

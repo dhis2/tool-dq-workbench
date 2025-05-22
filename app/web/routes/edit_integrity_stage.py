@@ -18,7 +18,7 @@ def edit_integrity_stage_view(stage_index):
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
 
-    stage = config['stages'][stage_index]
+    stage = config['analyzer_stages'][stage_index]
 
     if stage.get('type') != 'integrity_checks':
         flash('Only the integrity check stage can be edited here.', 'danger')

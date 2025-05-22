@@ -6,13 +6,49 @@ import requests
 from urllib.parse import urljoin
 
 class Dhis2ApiUtils:
-    def __init__(self, base_url, d2_token=None):
+    def __init__(self, base_url, d2_token=None, require_token=True):
         self.base_url = base_url
+        if require_token and not d2_token:
+            raise ValueError("A DHIS2 API token is required unless 'require_token=False' for testing.")
         self.d2_token = d2_token
         self.request_headers = {
-            'Authorization': f'ApiToken {self.d2_token}',
             'Content-Type': 'application/json'
         }
+
+        if d2_token:
+            self.request_headers['Authorization'] = f'ApiToken {d2_token}'
+
+
+    async def get_system_info(self, session):
+        url = f'{self.base_url}/api/systemSettings'
+        async with session.get(url) as response:
+            response.raise_for_status()
+            return await response.json()
+
+    async def get_server_version(self, session):
+        settings = await self.get_system_info(session)
+        version = settings.get('version')
+        if version:
+            if 'SNAPSHOT' in version:
+                major, minor = version.split('-')[0].split('.')
+                return {
+                    'major': int(major),
+                    'minor': int(minor),
+                    'patch': 0,
+                    'snapshot': True
+                }
+            elif version:
+                major, minor, patch = version.split('.')
+                return {
+                    'major': int(major),
+                    'minor': int(minor),
+                    'patch': int(patch),
+                    'snapshot': False
+                }
+        else:
+            raise ValueError("Server version not found in system settings")
+        return None
+
 
     async def get_organisation_units_at_level(self, level, session):
         url = f'{self.base_url}/api/organisationUnits.json?filter=level:eq:{level}&fields=id&paging=false'
@@ -20,6 +56,16 @@ class Dhis2ApiUtils:
             response.raise_for_status()
             data = await response.json()
             return [ou['id'] for ou in data['organisationUnits']]
+
+
+    async def fetch_datavalue_sets(self, query_params, session):
+        url = f'{self.base_url}/api/dataValueSets.json'
+        async with session.get(url, params=query_params) as response:
+            if response.status != 200:
+                logging.error(f"Failed to fetch data value sets: {response.status}")
+                logging.error(await response.text())
+                raise requests.exceptions.RequestException(f"Failed to fetch data value sets: {response.status}")
+            return await response.json()
 
     async def create_and_post_data_value_set(self, validation_rule_values, session):
         datavalue_set = {
@@ -34,17 +80,42 @@ class Dhis2ApiUtils:
             return await response.json()
 
     # --- Generic Metadata Utilities ---
-    def fetch_metadata_list(self, endpoint, key, query=None):
+    def fetch_metadata_list(self, endpoint, key=None, filters=None, fields=None, extra_params=None):
         """
-        Fetch a list of metadata items (e.g., dataElements, dataSets, etc.)
+        Fetch metadata from a DHIS2 endpoint.
+
+        Parameters:
+        - endpoint (str): DHIS2 endpoint (e.g., 'dataElements', 'dataSets')
+        - key (Optional[str]): Optional top-level key to extract from the response (e.g., 'dataElements').
+                                If not provided, returns the full JSON response.
+        - filters (Optional[list[str]]): List of filter strings, e.g. ["id:eq:xyz", "name:ilike:foo"]
+        - fields (Optional[list[str]]): List of fields to return. Default: ['id', 'name']
+        - extra_params (Optional[dict]): Additional query parameters. Default: {'paging': 'false'}
+
+        Returns:
+        - dict or list: The full response dict, or the extracted value under `key` if provided.
         """
-        url = f"{self.base_url}/api/{endpoint}.json?fields=id,name&paging=false"
-        if query:
-            url += f"&filter=name:ilike:{query}"
-        logging.debug(f"Fetching metadata from URL: {url}")
-        resp = requests.get(url, headers=self.request_headers)
+        if fields is None:
+            fields = ['id', 'name']
+        if extra_params is None:
+            extra_params = {'paging': 'false'}
+        if filters is None:
+            filters = []
+
+        base_url = f"{self.base_url.rstrip('/')}/api/{endpoint}.json"
+        params = {
+            'fields': ','.join(fields),
+            **extra_params
+        }
+
+        for filter_str in filters:
+            params.setdefault('filter', []).append(filter_str)
+
+        logging.debug(f"Fetching metadata from URL: {base_url} with params: {params}")
+        resp = requests.get(base_url, headers=self.request_headers, params=params)
         resp.raise_for_status()
-        return resp.json().get(key, [])
+        json_resp = resp.json()
+        return json_resp.get(key, []) if key else json_resp
 
     def fetch_metadata_item_by_id(self, endpoint, uid):
         """
@@ -69,7 +140,7 @@ class Dhis2ApiUtils:
     def fetch_data_elements(self, query=None):
         return self.fetch_metadata_list('dataElements', 'dataElements', query)
 
-    def fetch_data_sets(self, query=None):
+    def fetch_data_sets(self, query=None, ):
         return self.fetch_metadata_list('dataSets', 'dataSets', query)
 
     def fetch_validation_rule_groups(self, query=None):

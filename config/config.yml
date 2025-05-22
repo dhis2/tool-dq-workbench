@@ -4,7 +4,7 @@ server:
   logging_level: INFO
   max_concurrent_requests: 5
   max_results: 5000
-stages:
+analyzer_stages:
 - duration: 6 months
   level: 1
   name: Outliers in Monthly Morbidity Report

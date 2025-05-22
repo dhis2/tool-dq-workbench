@@ -10,6 +10,9 @@ def new_validation_rule_stage_view():
 
     if request.method == 'POST':
         config = load_config(server_config_path)
+        if 'analyzer_stages' not in config:
+            config['analyzer_stages'] = []
+
 
         new_stage = {
             'name': request.form['stage_name'],
@@ -23,7 +26,7 @@ def new_validation_rule_stage_view():
             }
         }
 
-        config['stages'].append(new_stage)
+        config['analyzer_stages'].append(new_stage)
         save_config(server_config_path, config)
         flash('New validation rule stage added.', 'success')
         return redirect(url_for('index'))

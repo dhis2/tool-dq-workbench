@@ -8,8 +8,8 @@ def delete_stage_view(stage_index):
     config_path = current_app.config['CONFIG_PATH']
     config = load_config(config_path)
 
-    if 0 <= stage_index < len(config['stages']):
-        removed_stage = config['stages'].pop(stage_index)
+    if 0 <= stage_index < len(config['analyzer_stages']):
+        removed_stage = config['analyzer_stages'].pop(stage_index)
         save_config(config_path, config)
         flash(f"Deleted stage: {removed_stage['name']}", 'success')
     else:

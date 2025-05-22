@@ -11,11 +11,11 @@ from app.web.utils.config_helpers import load_config
 def run_stage(stage_index):
     try:
         full_config = load_config(current_app.config['CONFIG_PATH'])
-        stage = full_config['stages'][stage_index]
+        stage = full_config['analyzer_stages'][stage_index]
 
         # Build minimal config for single stage
         filtered_config = deepcopy(full_config)
-        filtered_config['stages'] = [stage]
+        filtered_config['analyzer_stages'] = [stage]
 
         monitor = DataQualityMonitor(filtered_config)
         result = asyncio.run(monitor.run_all_stages())

@@ -12,7 +12,7 @@ def edit_validation_rule_stage_view(stage_index):
     config_path = current_app.config['CONFIG_PATH']
     config = load_config(config_path)
 
-    stage = config['stages'][stage_index]
+    stage = config['analyzer_stages'][stage_index]
 
     if stage.get('type') != 'validation_rules':
         flash('Only validation rule stages can be edited here.', 'danger')

@@ -69,10 +69,10 @@ class DataQualityMonitor:
             logging.info(f"Running all stages with max {self.max_concurrent_requests} concurrent requests")
             clock_start = datetime.now()
 
-            stage_names = [stage['name'] for stage in self.config['stages']]
+            stage_names = [stage['name'] for stage in self.config['analyzer_stages']]
             tasks = [
                 self.run_stage(session, stage, semaphore)
-                for stage in self.config['stages']
+                for stage in self.config['analyzer_stages']
             ]
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
