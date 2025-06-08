@@ -3,7 +3,7 @@ import random
 import string
 
 import requests
-from urllib.parse import urljoin
+
 
 class Dhis2ApiUtils:
     def __init__(self, base_url, d2_token=None, require_token=True):
@@ -12,15 +12,15 @@ class Dhis2ApiUtils:
             raise ValueError("A DHIS2 API token is required unless 'require_token=False' for testing.")
         self.d2_token = d2_token
         self.request_headers = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip',
         }
 
         if d2_token:
             self.request_headers['Authorization'] = f'ApiToken {d2_token}'
 
-
     async def get_system_info(self, session):
-        url = f'{self.base_url}/api/systemSettings'
+        url = f'{self.base_url}/api/system/info.json'
         async with session.get(url) as response:
             response.raise_for_status()
             return await response.json()
@@ -28,27 +28,26 @@ class Dhis2ApiUtils:
     async def get_server_version(self, session):
         settings = await self.get_system_info(session)
         version = settings.get('version')
-        if version:
-            if 'SNAPSHOT' in version:
-                major, minor = version.split('-')[0].split('.')
-                return {
-                    'major': int(major),
-                    'minor': int(minor),
-                    'patch': 0,
-                    'snapshot': True
-                }
-            elif version:
-                major, minor, patch = version.split('.')
-                return {
-                    'major': int(major),
-                    'minor': int(minor),
-                    'patch': int(patch),
-                    'snapshot': False
-                }
-        else:
+        if not version:
             raise ValueError("Server version not found in system settings")
-        return None
 
+        # Strip any suffix like '-SNAPSHOT'
+        base_version = version.split('-')[0]
+        parts = base_version.split('.')
+
+        if len(parts) < 2:
+            raise ValueError(f"Unexpected version format: {version}")
+
+        major = int(parts[0])
+        minor = int(parts[1])
+        patch = int(parts[2]) if len(parts) > 2 else 0
+
+        return {
+            'major': major,
+            'minor': minor,
+            'patch': patch,
+            'snapshot': 'SNAPSHOT' in version
+        }
 
     async def get_organisation_units_at_level(self, level, session):
         url = f'{self.base_url}/api/organisationUnits.json?filter=level:eq:{level}&fields=id&paging=false'
@@ -56,7 +55,6 @@ class Dhis2ApiUtils:
             response.raise_for_status()
             data = await response.json()
             return [ou['id'] for ou in data['organisationUnits']]
-
 
     async def fetch_datavalue_sets(self, query_params, session):
         url = f'{self.base_url}/api/dataValueSets.json'
@@ -81,20 +79,6 @@ class Dhis2ApiUtils:
 
     # --- Generic Metadata Utilities ---
     def fetch_metadata_list(self, endpoint, key=None, filters=None, fields=None, extra_params=None):
-        """
-        Fetch metadata from a DHIS2 endpoint.
-
-        Parameters:
-        - endpoint (str): DHIS2 endpoint (e.g., 'dataElements', 'dataSets')
-        - key (Optional[str]): Optional top-level key to extract from the response (e.g., 'dataElements').
-                                If not provided, returns the full JSON response.
-        - filters (Optional[list[str]]): List of filter strings, e.g. ["id:eq:xyz", "name:ilike:foo"]
-        - fields (Optional[list[str]]): List of fields to return. Default: ['id', 'name']
-        - extra_params (Optional[dict]): Additional query parameters. Default: {'paging': 'false'}
-
-        Returns:
-        - dict or list: The full response dict, or the extracted value under `key` if provided.
-        """
         if fields is None:
             fields = ['id', 'name']
         if extra_params is None:
@@ -105,14 +89,13 @@ class Dhis2ApiUtils:
         base_url = f"{self.base_url.rstrip('/')}/api/{endpoint}.json"
         params = {
             'fields': ','.join(fields),
+            'filter': filters,
             **extra_params
         }
 
-        for filter_str in filters:
-            params.setdefault('filter', []).append(filter_str)
-
         logging.debug(f"Fetching metadata from URL: {base_url} with params: {params}")
         resp = requests.get(base_url, headers=self.request_headers, params=params)
+        logging.debug("Got response "f"status: {resp.status_code}, content: {resp.text[:100]}...")
         resp.raise_for_status()
         json_resp = resp.json()
         return json_resp.get(key, []) if key else json_resp
@@ -122,7 +105,8 @@ class Dhis2ApiUtils:
         Fetch a single metadata item (e.g., dataElement) by UID.
         """
         # Supported endpoints
-        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups', 'categoryOptionCombos', 'dataElementGroups'}
+        allowed_endpoints = {'dataElements', 'dataSets', 'validationRuleGroups', 'categoryOptionCombos',
+                             'dataElementGroups'}
         if endpoint not in allowed_endpoints:
             raise ValueError(f"Invalid endpoint: {endpoint}")
 
@@ -197,6 +181,7 @@ class Dhis2ApiUtils:
                 "status": import_summary.get('status', 'UNKNOWN'),
                 "error": import_summary
             }
+
     @staticmethod
     def generate_uid():
         first_letter = random.choice(string.ascii_lowercase)

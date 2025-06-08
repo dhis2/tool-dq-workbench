@@ -11,11 +11,11 @@ from typing import Optional
 class StageAnalyzer(ABC):
     def __init__(self, config, base_url, headers):
         self.config = config
-        self.base_url = base_url
+        self.base_url = config['server'].get('base_url', base_url)
+        self.d2_token = config['server'].get('d2_token', '')
         self.headers = headers
         self.default_coc = config['server'].get('default_coc', 'HllvX50cXC0')
-
-        self.api_utils = Dhis2ApiUtils(self.base_url)
+        self.api_utils = Dhis2ApiUtils(self.base_url, self.d2_token)
 
     @abstractmethod
     async def run_stage(self, stage: dict, session, semaphore):

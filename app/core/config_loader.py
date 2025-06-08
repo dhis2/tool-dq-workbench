@@ -37,18 +37,21 @@ class ConfigManager:
     def validate_structure(cls, config: dict):
         cls._validate_base_url(config['server']['base_url'])
         cls._validate_api_token(config['server']['base_url'], config['server']['d2_token'])
-
-        if 'analyzer_stages' not in config:
-            raise ValueError("No analyzer stages defined in configuration")
+        #We need at least analyzer_stages or min_max_stages
+        if 'analyzer_stages' not in config and 'min_max_stages' not in config:
+            raise ValueError("Configuration must contain either 'analyzer_stages' or 'min_max_stages'")
         cls._validate_unique_stage_name(config)
-        for stage in config['analyzer_stages']:
-            cls._validate_stage(stage)
-            cls._validate_stage_params(stage)
-            cls._is_valid_duration(stage['duration'], stage['name'])
+
+        if 'analyzer_stages' in config:
+            for stage in config['analyzer_stages']:
+                cls._validate_stage(stage)
+                cls._validate_stage_params(stage)
+                cls._is_valid_duration(stage['duration'], stage['name'])
 
         # Validate min_max stages
-        for stage in config['min_max_stages']:
-            cls._validate_min_max_stages(stage)
+        if 'min_max_stages' in config:
+            for stage in config['min_max_stages']:
+                cls._validate_min_max_stages(stage)
 
 
     @staticmethod
@@ -141,13 +144,7 @@ class ConfigManager:
 
     @staticmethod
     def _validate_min_max_stages(stage):
-        required_keys = ['name', 'dataset', 'orgunits', 'data_elements', 'threshold_factor', 'method']
+        required_keys = ['name', 'datasets', 'org_units', 'previous_periods', 'completeness_threshold','groups']
         for key in required_keys:
             if key not in stage:
                raise ValueError(f"Missing '{key}' in min_max_stage '{stage.get('name', '<unnamed>')}'")
-        if not isinstance(stage['org_unit_levels'], list):
-            raise ValueError(f"'org_unit_levels' must be a list in stage '{stage['name']}'")
-        if not isinstance(stage['data_elements'], list):
-            raise ValueError(f"'data_elements' must be a list in stage '{stage['name']}'")
-        if stage['method'] not in ['PREV_MAX', 'ZSCORE', 'MAD', 'BOXCOX']:
-            raise ValueError(f"Invalid method '{stage['method']}' in min_max_stage '{stage['name']}'")

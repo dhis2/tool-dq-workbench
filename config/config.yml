@@ -1,40 +1,32 @@
 server:
-  base_url: http://localhost:8080
-  d2_token: d2p_lvYvbRPWZVjtMbctlPJK1fiAOaLtzonlnGSjJ7NKFIzb3OmFOB
+  base_url: http://localhost:9090
+  d2_token: d2p_wX9GIf0fuxATBtKwvWHTj6xQh6ao49lfwkL92bDkldbq412A8B
   logging_level: INFO
   max_concurrent_requests: 5
   max_results: 5000
+min_max_stages:
+ - name: Generate min-max for morbidity
+   datasets:
+      - QX4ZTUbOt3a
+   org_units: [ImspTQPwCqd]
+   previous_periods: 36
+   completeness_threshold: 0.1
+   groups:
+     - limitMedian: 10
+       method: PREV_MAX
+       threshold: 1.25
+     - limitMedian: 50
+       method: BOXCOX
+       threshold: 3
+     - limitMedian: 99999
+       method: BOXCOX
+       threshold: 4
 analyzer_stages:
-- duration: 6 months
-  level: 1
-  name: Outliers in Monthly Morbidity Report
+- duration: 16 weeks
+  level: 2
+  name: Anti Retroviral Therapy Returns
   params:
-    algorithm: MOD_Z_SCORE
-    dataset: eZDhcZi6FLP
-    destination_data_element: bH4u3bXfboi
-    threshold: 4
-  type: outlier
-- duration: 12 months
-  level: 1
-  name: Validation rules in ANC
-  params:
-    destination_data_element: dvjodtJuqZt
+    destination_data_element: x1H70U9MVmX
     period_type: Monthly
-    validation_rule_groups: UP1lctvalPn
+    validation_rule_groups: s26nobLp9j7
   type: validation_rules
-- duration: 12 months
-  level: 1
-  name: MinMax outliers in Inpatient Morbidity Report
-  params:
-    algorithm: MIN_MAX
-    dataset: PLq9sJluXvc
-    destination_data_element: bH4u3bXfboi
-    threshold: 5
-  type: outlier
-- duration: 12 months
-  level: 1
-  name: Metadata integrity
-  params:
-    monitoring_group: yNpUqX1BiFC
-    period_type: "Monthly"
-  type: integrity_checks

@@ -1,8 +1,7 @@
 import datetime
 import re
-from datetime import datetime
-
 from dateutil.relativedelta import relativedelta
+from datetime import datetime, timedelta
 
 class Dhis2PeriodUtils:
     @staticmethod
@@ -30,6 +29,12 @@ class Dhis2PeriodUtils:
         date = datetime(year, (quarter - 1) * 3 + 1, 1)
         previous_periods = [date - relativedelta(months=i*3) for i in range(1, number_of_periods + 1)]
         return {f"{p.year}Q{((p.month - 1) // 3) + 1}" for p in previous_periods}
+
+    @staticmethod
+    def previous_yearly_periods(period, number_of_periods):
+        year = int(period[:4])
+        previous_periods = [year - i for i in range(1, number_of_periods + 1)]
+        return {str(y) for y in previous_periods}
 
     @staticmethod
     def current_monthly_period(date=None):
@@ -64,6 +69,14 @@ class Dhis2PeriodUtils:
         quarter = (date.month - 1) // 3 + 1
         return f"{date.year}Q{quarter}"
 
+    @staticmethod
+    def current_yearly_period(date=None):
+        if date is None:
+            date = datetime.now()
+        elif isinstance(date, str):
+            date = datetime.strptime(date, "%Y-%m-%d")
+        return date.strftime("%Y")
+
     def get_current_period(self, period_type, date=None):
         if date is None:
             date = datetime.now()
@@ -78,6 +91,8 @@ class Dhis2PeriodUtils:
             return self.current_daily_period(date)
         elif period_type == 'Quarterly':
             return self.current_quarterly_period(date)
+        elif period_type == 'Yearly':
+            return self.current_yearly_period(date)
         else:
             raise ValueError("Unsupported period type")
 
@@ -91,6 +106,8 @@ class Dhis2PeriodUtils:
             return self.previous_daily_periods(period, number_of_periods)
         elif period_type == 'Quarterly':
             return self.previous_quarterly_periods(period, number_of_periods)
+        elif period_type == 'Yearly':
+            return self.previous_yearly_periods(period, number_of_periods)
         else:
             raise ValueError("Unsupported period type")
 
@@ -113,6 +130,7 @@ class Dhis2PeriodUtils:
         weekly_regex = r'^\d{4}W\d{2}$'
         daily_regex = r'^\d{8}$'
         quarterly_regex = r'^\d{4}Q\d$'
+        yearly_regex = r'^\d{4}$'
         if re.match(monthly_regex, period):
             return 'Monthly'
         elif re.match(weekly_regex, period):
@@ -121,6 +139,8 @@ class Dhis2PeriodUtils:
             return 'Daily'
         elif re.match(quarterly_regex, period):
             return 'Quarterly'
+        elif re.match(yearly_regex, period):
+            return 'Yearly'
         else:
             raise ValueError("Unsupported period format")
 
@@ -130,7 +150,6 @@ class Dhis2PeriodUtils:
         period_type = self.get_period_type_from_string(period)
         if period_type == 'Monthly':
             return datetime.strptime(period, "%Y%m")
-
         elif period_type == 'Weekly':
             year, week = int(period[:4]), int(period[5:])
             return datetime.fromisocalendar(year, week, 1)
@@ -140,6 +159,9 @@ class Dhis2PeriodUtils:
             year, quarter = int(period[:4]), int(period[5])
             month = (quarter - 1) * 3 + 1
             return datetime(year, month, 1)
+        elif period_type == 'Yearly':
+            year = int(period[:4])
+            return datetime(year, 1, 1)
         else:
             raise ValueError("Unsupported period type")
 
@@ -148,12 +170,14 @@ class Dhis2PeriodUtils:
         start_date = self.get_start_date_from_period(period)
 
         if period_type == 'Monthly':
-            return start_date + relativedelta(months=1) - datetime.timedelta(days=1)
+            return start_date + relativedelta(months=1) - relativedelta(seconds=1)
         elif period_type == 'Weekly':
-            return start_date + relativedelta(weeks=1) - datetime.timedelta(days=1)
+            return start_date + relativedelta(weeks=1) - relativedelta(seconds=1)
         elif period_type == 'Daily':
             return start_date
         elif period_type == 'Quarterly':
-            return start_date + relativedelta(months=3) - datetime.timedelta(days=1)
+            return start_date + relativedelta(months=3) - relativedelta(seconds=1)
+        elif period_type == 'Yearly':
+            return start_date + relativedelta(years=1) - relativedelta(seconds=1)
         else:
             raise ValueError("Unsupported period type")

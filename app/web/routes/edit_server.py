@@ -9,6 +9,8 @@ def edit_server():
     if request.method == 'POST':
         config = load_config(config_path)
 
+        config['server']['min_max_bulk_api_disabled'].setdefault('min_max_bulk_api_disabled', False)
+
         config['server']['base_url'] = request.form['base_url']
         new_token = request.form['d2_token'].strip()
         if new_token:
@@ -16,6 +18,7 @@ def edit_server():
         config['server']['logging_level'] = request.form['logging_level']
         config['server']['max_concurrent_requests'] = int(request.form['max_concurrent_requests'])
         config['server']['max_results'] = int(request.form['max_results'])
+        config['server']['min_max_bulk_api_disabled'] = request.form.get('min_max_bulk_api_disabled', 'false').lower() == 'true'
 
         save_config(config_path, config)
 

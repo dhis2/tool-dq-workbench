@@ -1,0 +1,29 @@
+class ResultTracker:
+    def __init__(self):
+        self._counters = {
+            "missing": 0,
+            "valid": 0,
+            "errors": 0,
+            "outliers": 0,
+            "invalid_min_max": 0,
+            "imported": 0,
+            "ignored": 0
+        }
+
+    def add_missing(self, amount=1): self._counters["missing"] += amount
+    def add_valid(self, amount=1): self._counters["valid"] += amount
+    def add_error(self, amount=1): self._counters["errors"] += amount
+    def add_outlier(self, amount=1): self._counters["outliers"] += amount
+    def add_invalid_min_max(self, amount=1): self._counters["invalid_min_max"] += amount
+    def add_imported(self, amount=1): self._counters["imported"] += amount
+    def add_ignored(self, amount=1): self._counters["ignored"] += amount
+
+    def get_summary(self):
+        return self._counters.copy()
+
+    def __str__(self):
+        return " | ".join(f"{k}: {v}" for k, v in self._counters.items())
+
+    def reset(self):
+        for k in self._counters:
+            self._counters[k] = 0

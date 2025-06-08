@@ -29,6 +29,13 @@
       <label class="form-label" for="max_results">Max Results</label>
       <input class="form-control" id="max_results" name="max_results" type="number" value="{{ server.max_results }}">
     </div>
+      <div class="mb-3">
+          <label class="form-label" for="min_max_bulk_api_disabled">Disable bulk MinMax API</label>
+            <select class="form-select" id="min_max_bulk_api_disabled" name="min_max_bulk_api_disabled">
+                <option value="true" {% if server.min_max_bulk_api_disabled %}selected{% endif %}>Yes</option>
+                <option value="false" {% if not server.min_max_bulk_api_disabled %}selected{% endif %}>No</option>
+            </select>
+        </div>
     <button class="btn btn-primary" type="submit">Save</button>
     <a class="btn btn-secondary" href="{{ url_for('ui.index') }}">Cancel</a>
   </form>
