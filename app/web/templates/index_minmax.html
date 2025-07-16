@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">Min-max generation</h1>
+  <form id="runForm" action="{{ url_for('api.run') }}" method="post">
+    <button id="runButton" class="btn btn-primary" type="submit">
+      <span id="spinner" class="spinner-border spinner-border-sm me-2" aria-hidden="true" style="display: none;">
+  <output></output>
+</span>
+      Run All
+    </button>
+  </form>
+</div>
+
+<!-- Buttons -->
+<div class="mb-3">
+  <a href="{{ url_for('api.new_minmax_stage') }}" class="btn btn-success btn-sm me-2">+ New Min-Max Stage</a>
+</div>
+
+<!-- Stage Table For min max generation stages-->
+<h2 class="h5 mt-4">Stages</h2>
+<table class="table table-sm align-middle">
+  <thead>
+    <tr>
+      <th>Stage Name</th>
+      <th class="text-end">Actions</th>
+    </tr>
+  </thead>
+    <tbody>
+        {% for stage in config.min_max_stages %}
+        <tr>
+        <td><strong>{{ stage.name }}</strong></td>
+        <td class="text-end">
+            <form method="POST" class="run-stage-form d-inline" data-index="{{ loop.index0 }}">
+            <button type="submit" class="btn btn-sm btn-outline-success me-1">Run</button>
+            </form>
+            <a href="{{ url_for('api.edit_minmax_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
+            <form method="POST" action="{{ url_for('api.delete_minmax_stage', stage_index=loop.index0) }}"
+                onsubmit="return confirm('Delete this stage?');" class="d-inline">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+        </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<!-- Run summary -->
+<div id="run-summary" class="mt-3"></div>
+{% include "partials/_run_controls.html" %}
+{% endblock %}

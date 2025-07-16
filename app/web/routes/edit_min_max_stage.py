@@ -18,35 +18,30 @@ def edit_minmax_stage_view(stage_index):
         return redirect(url_for('ui.index'))
 
     stage = config['min_max_stages'][stage_index]
-
-    api_utils = Dhis2ApiUtils(
-        base_url=config['server']['base_url'],
-        d2_token=config['server']['d2_token']
-    )
-
-    de_uid = stage['params'].get('destination_data_element')
-    ds_uid = stage['params'].get('dataset')
-
-    try:
-        de_name = resolve_uid_name(api_utils.fetch_data_element_by_id, de_uid)
-    except requests.exceptions.RequestException:
-        de_name = de_uid
-        flash(f"Warning: Failed to fetch data element name for {de_uid}", 'warning')
-
-    try:
-        ds_name = resolve_uid_name(api_utils.fetch_dataset_by_id, ds_uid)
-    except requests.exceptions.RequestException:
-        ds_name = ds_uid
-        flash(f"Warning: Failed to fetch dataset name for {ds_uid}", 'warning')
-
     if request.method == 'POST':
         stage['name'] = request.form['stage_name']
-        stage['level'] = int(request.form['orgunit_level'])
-        stage['duration'] = request.form['duration']
-        stage['params']['dataset'] = request.form['dataset']
-        stage['params']['algorithm'] = request.form['algorithm']
-        stage['params']['threshold'] = int(request.form['threshold'])
-        stage['params']['destination_data_element'] = request.form['destination_data_element']
+        stage['completeness_threshold'] = request.form['completeness_threshold']
+        stage['previous_periods'] = int(request.form['previous_periods'])
+        stage['datasets'] = [d.strip() for d in request.form.get('datasets', '').split(',') if d.strip()]
+        stage['org_units'] = [o.strip() for o in request.form.get('orgunits', '').split(',') if o.strip()]
+        stage['groups'] = []
+        group_indices = []
+        for key in request.form.keys():
+            if key.startswith('groups-') and key.endswith('-limitMedian'):
+                try:
+                    idx = int(key.split('-')[1])
+                    group_indices.append(idx)
+                except ValueError:
+                    continue
+        group_indices = sorted(set(group_indices))
+        for i in group_indices:
+            group = {
+                'limitMedian': request.form.get(f'groups-{i}-limitMedian'),
+                'method': request.form.get(f'groups-{i}-method'),
+                'threshold': request.form.get(f'groups-{i}-threshold')
+            }
+            if group['limitMedian'] and group['method'] and group['threshold']:
+                stage['groups'].append(group)
 
         try:
             ConfigManager.validate_structure(config)
@@ -57,8 +52,7 @@ def edit_minmax_stage_view(stage_index):
             flash(f"Error saving config: {e}", 'danger')
 
     return render_template(
-        "stage_form_minmax_generation.html",
+        "stage_form_min_max.html",
         stage=deepcopy(stage),
-        data_element_name=de_name,
-        dataset_name=ds_name
+        edit=True
     )

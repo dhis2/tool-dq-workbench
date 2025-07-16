@@ -5,6 +5,7 @@ from .ui_blueprint import ui_bp
 
 from . import (
     index,
+    index_minmax,
     run,
     run_stage,
     edit_server,
@@ -12,9 +13,12 @@ from . import (
     new_validation_rule_stage,
     edit_outlier_stage,
     edit_validation_rule_stage,
-    delete_stage,
+    new_min_max_stage,
+    edit_min_max_stage,
+    delete_minmax_stage,
     new_integrity_stage,
     edit_integrity_stage,
+    delete_stage,
     api
 )
 
