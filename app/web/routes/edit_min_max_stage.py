@@ -1,16 +1,15 @@
+from flask import Blueprint, current_app, request, render_template, redirect, url_for, flash
 from copy import deepcopy
-
 import requests
-from flask import current_app, request, render_template, redirect, url_for, flash
 
 from app.core.api_utils import Dhis2ApiUtils
-from app.core.config_loader import ConfigManager
-from app.web.routes.api import api_bp
 from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
+from app.web.routes.api import api_bp
+from app.core.config_loader import ConfigManager
 
+@api_bp.route('/edit-minmax-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_minmax_stage')
 
-@api_bp.route('/edit-outlier-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_outlier_stage')
-def edit_outlier_stage_view(stage_index):
+def edit_minmax_stage_view(stage_index):
     config_path = current_app.config['CONFIG_PATH']
     try:
         config = load_config(config_path)
@@ -18,11 +17,7 @@ def edit_outlier_stage_view(stage_index):
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
 
-    stage = config['analyzer_stages'][stage_index]
-
-    if stage.get('type') != 'outlier':
-        flash('Only outlier stages can be edited here.', 'danger')
-        return redirect(url_for('ui.index'))
+    stage = config['min_max_stages'][stage_index]
 
     api_utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
@@ -56,16 +51,14 @@ def edit_outlier_stage_view(stage_index):
         try:
             ConfigManager.validate_structure(config)
             save_config(config_path, config)
-            flash(f"Updated outlier stage: {stage['name']}", 'success')
+            flash(f"Updated min/max stage: {stage['name']}", 'success')
             return redirect(url_for('ui.index'))
         except ValueError as e:
             flash(f"Error saving config: {e}", 'danger')
-            # Fall through to re-render the form
 
     return render_template(
-        "stage_form_outlier.html",
+        "stage_form_minmax_generation.html",
         stage=deepcopy(stage),
-        edit=True,
         data_element_name=de_name,
-        ds_name=ds_name
+        dataset_name=ds_name
     )

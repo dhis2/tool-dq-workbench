@@ -9,7 +9,7 @@ def edit_server():
     if request.method == 'POST':
         config = load_config(config_path)
 
-        config['server']['min_max_bulk_api_disabled'].setdefault('min_max_bulk_api_disabled', False)
+        config['server'].setdefault('min_max_bulk_api_disabled', False)
 
         config['server']['base_url'] = request.form['base_url']
         new_token = request.form['d2_token'].strip()
