@@ -17,7 +17,7 @@ from app.generators.min_max_statistics import (
 )
 
 
-class MinMaxGenerator:
+class MinMaxFactory:
     MAX_INT_32 = 2_147_483_647
 
     def __init__(self, config):
@@ -117,8 +117,8 @@ class MinMaxGenerator:
                     item
                     and isinstance(item["min"], int)
                     and isinstance(item["max"], int)
-                    and abs(item["min"]) <= MinMaxGenerator.MAX_INT_32
-                    and abs(item["max"]) <= MinMaxGenerator.MAX_INT_32
+                    and abs(item["min"]) <= MinMaxFactory.MAX_INT_32
+                    and abs(item["max"]) <= MinMaxFactory.MAX_INT_32
                     and item["min"] <= item["max"]
                     and item.get("dataElement")
                     and item.get("organisationUnit")
@@ -293,6 +293,7 @@ class MinMaxGenerator:
         Fetch data values for a specific organisation unit within the given date range.
         """
         url = f'{self.base_url}/api/dataValueSets'
+
         params = {
             'dataSet': prepared_stage['dataset_metadata']['id'],
             'orgUnit': org_unit,
@@ -300,6 +301,9 @@ class MinMaxGenerator:
             'endDate': prepared_stage['end_date'].strftime("%Y-%m-%d"),
             'children': 'true'
         }
+        from urllib.parse import urlencode
+        full_url = f"{url}?{urlencode(params)}"
+        logging.debug("Dispatching data values request to URL: %s", full_url)
         async with semaphore:
             async with session.get(url, params=params) as response:
                 if response.status == 200:

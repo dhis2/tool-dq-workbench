@@ -15,6 +15,7 @@ from . import (
     edit_validation_rule_stage,
     new_min_max_stage,
     edit_min_max_stage,
+    run_minmax_stage,
     delete_minmax_stage,
     new_integrity_stage,
     edit_integrity_stage,

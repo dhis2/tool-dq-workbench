@@ -8,7 +8,7 @@ import time
 import aiohttp
 import logging
 from app.core.config_loader import ConfigManager
-from app.generators.min_max_factory import MinMaxGenerator
+from app.generators.min_max_factory import MinMaxFactory
 import pprint
 
 # Set up project root path
@@ -23,7 +23,7 @@ async def main():
     # Load and validate config
     config_loader = ConfigManager(CONFIG_PATH)
     config = config_loader.config
-    generator = MinMaxGenerator(config)
+    factory = MinMaxFactory(config)
 
     # Get first min_max stage from config
     stage = config["min_max_stages"][0]
@@ -39,10 +39,11 @@ async def main():
         "Accept-Encoding": "gzip"
     }
     async with aiohttp.ClientSession(headers=headers) as session:
-
-        resp = await generator.run_stage(stage, session, semaphore)
+        resp = await factory.run_stage(stage, session, semaphore)
         logging.info("Stage completed successfully")
         logging.debug("Response from run_stage: %s", pprint.pformat(resp))
+        result_summary = factory.result_tracker.get_summary()
+        logging.info("Result summary: %s", pprint.pformat(result_summary))
 if __name__ == "__main__":
     start = time.perf_counter()
     asyncio.run(main())
