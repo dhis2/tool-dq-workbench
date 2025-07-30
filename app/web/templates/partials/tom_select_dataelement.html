@@ -1,12 +1,13 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-      const dataElementEl = document.getElementById("destination_data_element");
+    const dataElementEl = document.getElementById("destination_data_element");
     if (!dataElementEl) return;
 
-    new TomSelect(dataElementEl, {
+    const config = {
       valueField: "id",
       labelField: "text",
       searchField: "text",
+      placeholder: "Type to search for data elements...",
       load: function(query, callback) {
         if (query.length < 3) return callback();
         fetch(`/api/data-elements?q=${encodeURIComponent(query)}`)
@@ -15,9 +16,20 @@
           .catch(() => callback());
       },
       preload: true,
-      {% if stage.params.destination_data_element %}
-      items: ["{{ stage.params.destination_data_element }}"],
-      {% endif %}
-    });
+      create: false,
+    };
+
+    {% if stage.params.destination_data_element %}
+      config.options = [{
+        id: "{{ stage.params.destination_data_element }}",
+        text: "{{ data_element_name or stage.params.destination_data_element }}"
+      }];
+      config.items = ["{{ stage.params.destination_data_element }}"];
+    {% else %}
+      config.options = [];
+      config.items = [];
+    {% endif %}
+
+    new TomSelect(dataElementEl, config);
   });
 </script>

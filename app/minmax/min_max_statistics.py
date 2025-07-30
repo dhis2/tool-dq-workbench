@@ -4,6 +4,7 @@ import numpy as np
 from scipy.stats import median_abs_deviation, boxcox
 from scipy.special import inv_boxcox
 import math
+from app.minmax.min_max_method import MinMaxMethod
 
 def check_no_variance(values):
     if not values:
@@ -32,6 +33,14 @@ def values_mad(values, threshold):
     val_min = max(median - threshold * mad, 0)
     return val_max, val_min
 
+def values_iqr(values, threshold):
+    q1 = np.percentile(values, 25)
+    q3 = np.percentile(values, 75)
+    iqr = q3 - q1
+    val_min = max(q1 - threshold * iqr, 0)
+    val_max = q3 + threshold * iqr
+    return val_max, val_min
+
 def values_boxcox(values, threshold):
     try:
         transformed, lmbda = boxcox(values)
@@ -45,17 +54,17 @@ def values_boxcox(values, threshold):
     lower = mean - threshold * std
 
     val_max = inv_boxcox(upper, lmbda)
-    val_min = inv_boxcox(lower, lmbda)
+    # Ensure lower bound is not too close to zero to avoid numerical issues
+    lower_safe = max(lower, -1 / lmbda + 1e-6)
+    val_min = inv_boxcox(lower_safe, lmbda)
 
     # sanity fallback
     if not math.isfinite(val_min) or val_max == val_min:
         return np.nan, np.nan, "BOXCOX failed (invalid bounds)"
-
     if len([v for v in values if v > val_max]) > (len(values) / 2):
         return np.nan, np.nan, "BOXCOX rejected (too many above max)"
     if len([v for v in values if v < val_min]) > (len(values) / 2):
         return np.nan, np.nan, "BOXCOX rejected (too many below min)"
-
     return val_max, val_min, f"BOXCOX (λ={lmbda:.3f})"
 
 
@@ -82,17 +91,20 @@ def compute_statistical_bounds(values, method, threshold):
         val_max, val_min = past_values_max_bounds(values, 1.5)
         return val_min, val_max, "PREV_MAX - No variance"
 
-    method_map = {
-        "PREV_MAX": past_values_max_bounds,
-        "ZSCORE": values_z_score,
-        "MAD": values_mad,
-        "BOXCOX": values_boxcox
-    }
-
-    func = method_map.get(method)
-    if not func:
+    try:
+        method_enum = MinMaxMethod(method)
+    except ValueError:
         raise ValueError(f"Unknown method: {method}")
 
+    method_map = {
+        MinMaxMethod.PREV_MAX: past_values_max_bounds,
+        MinMaxMethod.ZSCORE: values_z_score,
+        MinMaxMethod.MAD: values_mad,
+        MinMaxMethod.IQR: values_iqr,
+        MinMaxMethod.BOXCOX: values_boxcox,
+    }
+
+    func = method_map[method_enum]
     result = func(values, threshold)
 
     if method == "BOXCOX":

@@ -52,17 +52,18 @@
             runSummary.innerHTML = 'Running...';
 
             try {
-                const response = await fetch(`/api/run-min-max-stage/${stageIndex}`, {
+                const response = await fetch(`/api/run-minmax-stage/${stageIndex}`, {
                     method: 'POST',
                 });
 
-                const responseText = await response.text(); // Read response as text
+                const responseText = await response.text();
                 try {
                     const result = JSON.parse(responseText); // Parse JSON
                     if (result.success) {
                         runSummary.innerHTML = `
                             <strong>Run Summary:</strong><br>
-                            Outliers detected: ${result["Outliers detected"]}<br>
+                            Value fallbacks: ${result["Value fallbacks"]}<br>
+                            Bound warnings: ${result["Bound warnings"]}<br>
                             Value errors: ${result["Value errors"]}<br>
                             Values ignored: ${result["Values ignored"]}<br>
                             Values imported: ${result["Values imported"]}<br>

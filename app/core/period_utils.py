@@ -5,20 +5,20 @@ from datetime import datetime, timedelta
 
 class Dhis2PeriodUtils:
     @staticmethod
-    def previous_monthly_periods(period, number_of_periods):
+    def previous_monthly_periods(period, number_of_periods) -> set:
         date = datetime.strptime(period, "%Y%m")
         previous_periods = [date - relativedelta(months=i) for i in range(1, number_of_periods + 1)]
         return {p.strftime("%Y%m") for p in previous_periods}
 
     @staticmethod
-    def previous_weekly_periods(period, number_of_periods):
+    def previous_weekly_periods(period, number_of_periods) -> set:
         year, week = int(period[:4]), int(period[5:])
         date = datetime.strptime(f'{year}-W{week}-1', "%Y-W%W-%w")
         previous_periods = [date - relativedelta(weeks=i) for i in range(1, number_of_periods + 1)]
         return {f"{p.isocalendar()[0]}W{p.isocalendar()[1]:02d}" for p in previous_periods}
 
     @staticmethod
-    def previous_daily_periods(period, number_of_periods):
+    def previous_daily_periods(period, number_of_periods) -> set:
         date = datetime.strptime(period, "%Y%m%d")
         previous_periods = [date - relativedelta(days=i) for i in range(1, number_of_periods + 1)]
         return {p.strftime("%Y%m%d") for p in previous_periods}

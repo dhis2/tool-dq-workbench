@@ -1,22 +1,39 @@
 <script>
-  document.addEventListener("DOMContentLoaded", function () {
-      const vrgEl = document.getElementById("validation_rule_groups");
+ document.addEventListener("DOMContentLoaded", function () {
+    const vrgEl = document.getElementById("validation_rule_group");
     if (!vrgEl) return;
-  new TomSelect(vrgEl, {
-    valueField: "id",
-    labelField: "text",
-    searchField: "text",
-    load: function(query, callback) {
-      if (query.length < 3) return callback();
-      fetch(`/api/validation-rule-groups?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(callback)
-        .catch(() => callback());
-    },
-    preload: true,
-    {% if stage.params.validation_rule_groups %}
-    items: ["{{ stage.params.validation_rule_groups }}"],
+
+    const config = {
+      valueField: "id",
+      labelField: "text",
+      searchField: "text",
+      placeholder: "Type to search for validation rule groups...",
+      load: function(query, callback) {
+        if (query.length < 3) {
+          return callback();
+        }
+        fetch(`/api/validation-rule-groups?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(callback)
+          .catch(() => callback());
+      },
+      loadThrottle: 300, // Wait 300ms after user stops typing
+      create: false, // Don't allow creating new items
+    };
+
+    {% if stage.params.validation_rule_group %}
+    // Editing existing stage - pre-populate with current selection
+    config.options = [{
+      id: "{{ stage.params.validation_rule_group }}",
+      text: "{{ validation_rule_group_name or stage.params.validation_rule_group }}"
+    }];
+    config.items = ["{{ stage.params.validation_rule_group }}"];
+    {% else %}
+    // New stage - start empty, user must search and select
+    config.options = [];
+    config.items = [];
     {% endif %}
+
+    new TomSelect(vrgEl, config);
   });
-      });
 </script>

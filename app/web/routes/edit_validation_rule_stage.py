@@ -1,64 +1,97 @@
+import logging
+
 from flask import Blueprint, current_app, request, render_template, redirect, url_for, flash
 from copy import deepcopy
 import requests
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
-from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
+from app.web.utils.config_helpers import load_config, save_config
 from app.web.routes.api import api_bp
-
-@api_bp.route('/edit-validation-rule-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_validation_rule_stage')
-def edit_validation_rule_stage_view(stage_index):
+from app.core.uid_utils import UidUtils
+from app.core.period_type import PeriodType
+@api_bp.route('/validation-rule-stage', methods=['GET', 'POST'], endpoint='new_validation_rule_stage')
+@api_bp.route('/validation-rule-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_validation_rule_stage')
+def validation_rule_stage_view(stage_index=None):
     config_path = current_app.config['CONFIG_PATH']
     config = load_config(config_path)
+    is_edit = stage_index is not None
 
-    stage = config['analyzer_stages'][stage_index]
+    if is_edit:
+        stage = config['analyzer_stages'][stage_index]
+        if stage.get('type') != 'validation_rules':
+            flash('Only validation rule stages can be edited here.', 'danger')
+            return redirect(url_for('ui.index'))
+    else:
+        stage = {
+            'name': '',
+            'type': 'validation_rules',
+            'level': 1,
+            'duration': '12 months',
+            'params': {
+                'validation_rule_group': '',
+                'period_type': '',
+                'destination_data_element': ''
+            },
+            'active': False
+        }
 
-    if stage.get('type') != 'validation_rules':
-        flash('Only validation rule stages can be edited here.', 'danger')
-        return redirect(url_for('ui.index'))
+    data_element_name = ''
+    validation_rule_group_name = ''
 
     api_utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']
     )
 
-    de_uid = stage['params'].get('destination_data_element')
-    vrg_uid = stage['params'].get('validation_rule_groups')
+    if is_edit:
+        de_uid = stage['params'].get('destination_data_element')
+        vrg_uid = stage['params'].get('validation_rule_group')
 
-    try:
-        data_element_name = resolve_uid_name(api_utils.fetch_data_element_by_id, de_uid)
-    except requests.exceptions.RequestException:
-        data_element_name = de_uid
-        flash(f"Warning: Failed to fetch data element name for {de_uid}", 'warning')
+        try:
+            data_element_name = api_utils.fetch_data_element_by_id(de_uid)['name']
+            if not data_element_name:
+                data_element_name = de_uid
+        except (requests.exceptions.HTTPError, requests.exceptions.RequestException):
+            data_element_name = de_uid
+            flash(f"Warning: Failed to fetch data element name for {de_uid}", 'warning')
 
-    try:
-        validation_rule_group_name = resolve_uid_name(api_utils.fetch_validation_rule_group_by_id, vrg_uid)
-    except requests.exceptions.RequestException:
-        validation_rule_group_name = vrg_uid
-        flash(f"Warning: Failed to fetch validation rule group name for {vrg_uid}", 'warning')
+        try:
+            validation_rule_group_name = api_utils.fetch_validation_rule_group_by_id(vrg_uid)['name']
+            if not validation_rule_group_name:
+                validation_rule_group_name = vrg_uid
+        except (requests.exceptions.HTTPError, requests.exceptions.RequestException):
+            validation_rule_group_name = vrg_uid
+            flash(f"Warning: Failed to fetch validation rule group name for {vrg_uid}", 'warning')
 
     if request.method == 'POST':
+        # Common updates
         stage['name'] = request.form['stage_name']
         stage['level'] = int(request.form['orgunit_level'])
         stage['duration'] = request.form['duration']
-        stage['params']['validation_rule_groups'] = request.form['validation_rule_groups']
+        stage['params']['validation_rule_group'] = request.form['validation_rule_group']
         stage['params']['period_type'] = request.form['period_type']
         stage['params']['destination_data_element'] = request.form['destination_data_element']
+        stage['uid'] = request.form.get('uid', '').strip() or UidUtils.generate_uid()
+        stage['active'] = request.form.get('active', 'off') == 'on'
+
+        # Append only if new
+        if not is_edit:
+            config.setdefault('analyzer_stages', []).append(stage)
 
         try:
-            ConfigManager.validate_structure(config)  # validate before saving
+            ConfigManager.validate_structure(config)
             save_config(config_path, config)
-            flash(f"Updated validation rule stage: {stage['name']}", 'success')
+            flash(f"{'Updated' if is_edit else 'New'} validation rule stage saved.", 'success')
             return redirect(url_for('ui.index'))
         except ValueError as e:
             flash(f"Error saving config: {e}", 'danger')
-            # Fall through to re-render the form
 
     return render_template(
         "stage_form_validation_rule.html",
         stage=deepcopy(stage),
-        edit=True,
+        edit=is_edit,
         data_element_name=data_element_name,
-        validation_rule_group_name=validation_rule_group_name
+        validation_rule_group_name=validation_rule_group_name,
+        period_types=PeriodType.values()
     )

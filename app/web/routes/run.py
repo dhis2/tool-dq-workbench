@@ -1,6 +1,6 @@
 import asyncio
 
-from flask import Blueprint, current_app, render_template, flash, jsonify
+from flask import Blueprint, current_app, render_template, flash, jsonify, redirect, url_for
 
 from app.runner import DataQualityMonitor
 from app.web.utils.config_helpers import load_config
@@ -11,7 +11,21 @@ from app.web.routes.api import api_bp
 def run_now():
     try:
         config = load_config(current_app.config['CONFIG_PATH'])
-        monitor = DataQualityMonitor(config)
+
+        # Only keep active stages
+        active_stages = [
+            stage for stage in config.get("analyzer_stages", [])
+            if stage.get("active", False)  # Explicitly default to False
+        ]
+
+        if not active_stages:
+            flash("No active stages to run.", "warning")
+            return redirect(url_for('ui.index'))
+
+        # Replace only the active stages in a shallow copy of config
+        config_filtered = {**config, "analyzer_stages": active_stages}
+
+        monitor = DataQualityMonitor(config_filtered)
         result = asyncio.run(monitor.run_all_stages())
 
         # Build summary text from import summary

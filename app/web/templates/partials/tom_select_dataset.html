@@ -3,10 +3,11 @@
     const datasetEl = document.getElementById("dataset");
     if (!datasetEl) return;
 
-    new TomSelect(datasetEl, {
+    const config = {
       valueField: "id",
       labelField: "text",
       searchField: "text",
+      placeholder: "Type to search for datasets...",
       load: function(query, callback) {
         if (query.length < 3) return callback();
         fetch(`/api/datasets?q=${encodeURIComponent(query)}`)
@@ -15,9 +16,21 @@
           .catch(() => callback());
       },
       preload: true,
-      {% if stage.params and stage.params.dataset %}
-      items: ["{{ stage.params.dataset }}"],
-      {% endif %}
-    });
+      create: false,
+    };
+
+    {% if stage.params and stage.params.dataset %}
+      config.options = [{
+        id: "{{ stage.params.dataset }}",
+        text: "{{ dataset_name or stage.params.dataset }}"
+      }];
+      config.items = ["{{ stage.params.dataset }}"];
+    {% else %}
+      config.options = [];
+      config.items = [];
+    {% endif %}
+
+    new TomSelect(datasetEl, config);
   });
 </script>
+

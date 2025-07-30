@@ -49,12 +49,13 @@ class Dhis2ApiUtils:
             'snapshot': 'SNAPSHOT' in version
         }
 
-    async def get_organisation_units_at_level(self, level, session):
+    async def get_organisation_units_at_level(self, level, session, semaphore):
         url = f'{self.base_url}/api/organisationUnits.json?filter=level:eq:{level}&fields=id&paging=false'
-        async with session.get(url) as response:
-            response.raise_for_status()
-            data = await response.json()
-            return [ou['id'] for ou in data['organisationUnits']]
+        async with semaphore:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                data = await response.json()
+                return [ou['id'] for ou in data['organisationUnits']]
 
     async def fetch_datavalue_sets(self, query_params, session):
         url = f'{self.base_url}/api/dataValueSets.json'
@@ -121,32 +122,39 @@ class Dhis2ApiUtils:
         return response.json()
 
     # --- Specific Wrappers ---
-    def fetch_data_elements(self, query=None):
-        return self.fetch_metadata_list('dataElements', 'dataElements', query)
+    def fetch_data_elements(self, filters=None, fields=None, extra_params=None):
+        return self.fetch_metadata_list('dataElements', 'dataElements', filters, fields, extra_params)
 
-    def fetch_data_sets(self, query=None, ):
-        return self.fetch_metadata_list('dataSets', 'dataSets', query)
+    def fetch_data_sets(self, filters=None, fields=None, extra_params=None):
+        if fields is None:
+            fields = ['id', 'name']
+        return self.fetch_metadata_list('dataSets', 'dataSets', filters, fields, extra_params)
 
-    def fetch_validation_rule_groups(self, query=None):
-        return self.fetch_metadata_list('validationRuleGroups', 'validationRuleGroups', query)
+    def fetch_validation_rule_groups(self, filters=None, fields=None, extra_params=None):
+        return self.fetch_metadata_list('validationRuleGroups', 'validationRuleGroups', filters, fields, extra_params)
 
-    def fetch_data_element_groups(self, query=None):
-        return self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', query)
+    def fetch_data_element_groups(self, filters=None, fields=None, extra_params=None):
+        return self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', filters, fields, extra_params)
 
     def fetch_data_element_by_id(self, uid):
-        return self.fetch_metadata_item_by_id('dataElements', uid)
+        resp = self.fetch_metadata_list('dataElements', 'dataElements', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return  resp[0] if resp else None
 
     def fetch_data_element_group_by_id(self, uid):
-        return self.fetch_metadata_item_by_id('dataElementGroups', uid)
+        resp = self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
 
     def fetch_dataset_by_id(self, uid):
-        return self.fetch_metadata_item_by_id('dataSets', uid)
+        resp = self.fetch_metadata_list('dataSets', 'dataSets', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
 
     def fetch_validation_rule_group_by_id(self, uid):
-        return self.fetch_metadata_item_by_id('validationRuleGroups', uid)
+        resp = self.fetch_metadata_list('validationRuleGroups', 'validationRuleGroups', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
 
     def fetch_category_option_combo_by_id(self, uid):
-        return self.fetch_metadata_item_by_id('categoryOptionCombos', uid)
+        resp = self.fetch_metadata_list('categoryOptionCombos', 'categoryOptionCombos', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
 
     def ping(self):
         try:
@@ -187,6 +195,15 @@ class Dhis2ApiUtils:
         first_letter = random.choice(string.ascii_lowercase)
         last_part = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
         return first_letter + last_part
+
+    def fetch_system_settings(self):
+        """
+        Fetch system settings from the DHIS2 API.
+        """
+        url = f"{self.base_url.rstrip('/')}/api/systemSettings"
+        response = requests.get(url, headers=self.request_headers)
+        response.raise_for_status()
+        return response.json()
 
 
 def generate_uid():

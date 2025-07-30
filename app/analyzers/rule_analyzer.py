@@ -17,9 +17,9 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         if isinstance(organisation_unit, list):
             ous = organisation_unit
         else:
-            ous = await self.get_organisation_units_at_level(stage['level'], session)
+            ous = await self.get_organisation_units_at_level(stage['level'], session, semaphore)
 
-        vrgs = tuple(params['validation_rule_groups'].split(','))
+        vrg = params['validation_rule_group']
         max_results = params.get('max_results', self.config['server'].get('max_results', 500))
         data_element = params['destination_data_element']
 
@@ -27,7 +27,7 @@ class ValidationRuleAnalyzer(StageAnalyzer):
             self._fetch_validation_rule_analysis_async(
                 session, vrg, ou, start_date, data_element, max_results, semaphore
             )
-            for ou in ous for vrg in vrgs
+            for ou in ous
         ]
 
         results_nested = await asyncio.gather(*tasks)

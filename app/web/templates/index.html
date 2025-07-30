@@ -2,60 +2,72 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h1 class="h4 mb-0">Data Quality Monitor</h1>
-  <form id="runForm" action="{{ url_for('api.run') }}" method="post">
-    <button id="runButton" class="btn btn-primary" type="submit">
+    <h1 class="h4 mb-0">Data Quality Monitor</h1>
+    <form id="runForm" action="{{ url_for('api.run') }}" method="post">
+        <button id="runButton" class="btn btn-primary" type="submit">
       <span id="spinner" class="spinner-border spinner-border-sm me-2" aria-hidden="true" style="display: none;">
   <output></output>
 </span>
-      Run All
-    </button>
-  </form>
+            Run All
+        </button>
+    </form>
 </div>
 
 <!-- Buttons -->
 <div class="mb-3">
-  <a href="{{ url_for('api.new_outlier_stage') }}" class="btn btn-success btn-sm me-2">+ New Outlier Stage</a>
-  <a href="{{ url_for('api.new_validation_rule_stage') }}" class="btn btn-success btn-sm me-2">+ New Validation Rule Stage</a>
-  {% if not integrity_stage_exists %}
+    <a href="{{ url_for('api.new_outlier_stage') }}" class="btn btn-success btn-sm me-2">+ New Outlier Stage</a>
+    <a href="{{ url_for('api.new_validation_rule_stage') }}" class="btn btn-success btn-sm me-2">+ New Validation Rule
+        Stage</a>
+    {% if not integrity_stage_exists %}
     <a href="{{ url_for('api.new_integrity_stage') }}" class="btn btn-success btn-sm">+ New Integrity Stage</a>
-  {% endif %}
+    {% endif %}
 </div>
 
 <!-- Stage Table -->
 <h2 class="h5 mt-4">Stages</h2>
 <table class="table table-sm align-middle">
-  <thead>
+    <thead>
     <tr>
-      <th>Stage Name</th>
-      <th>Type</th>
-      <th class="text-end">Actions</th>
+        <th>Stage Name</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th class="text-end">Actions</th>
     </tr>
-  </thead>
-  <tbody>
+    </thead>
+    <tbody>
     {% for stage in config.analyzer_stages %}
     <tr>
-      <td><strong>{{ stage.name }}</strong></td>
-      <td><span class="badge bg-secondary text-uppercase">{{ stage.type }}</span></td>
-      <td class="text-end">
-        <form method="POST" class="run-stage-form d-inline" data-index="{{ loop.index0 }}">
-          <button type="submit" class="btn btn-sm btn-outline-success me-1">Run</button>
-        </form>
-        {% if stage.type == 'outlier' %}
-        <a href="{{ url_for('api.edit_outlier_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-        {% elif stage.type == 'validation_rules' %}
-        <a href="{{ url_for('api.edit_validation_rule_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-        {% elif stage.type == 'integrity_checks' %}
-        <a href="{{ url_for('api.edit_integrity_stage', stage_index=loop.index0) }}" class="btn btn-sm btn-outline-primary me-1">Edit</a>
-        {% endif %}
-        <form method="POST" action="{{ url_for('api.delete_stage', stage_index=loop.index0) }}"
-              onsubmit="return confirm('Delete this stage?');" class="d-inline">
-          <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-        </form>
-      </td>
+        <td><strong>{{ stage.name }}</strong></td>
+        <td><span class="badge bg-secondary text-uppercase">{{ stage.type }}</span></td>
+        <td>
+            {% if stage.active %}
+            <span class="badge bg-success">Active</span>
+            {% else %}
+            <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+        </td>
+        <td class="text-end">
+            <form method="POST" class="run-stage-form d-inline" data-index="{{ loop.index0 }}">
+                <button type="submit" class="btn btn-sm btn-outline-success me-1">Run</button>
+            </form>
+            {% if stage.type == 'outlier' %}
+            <a href="{{ url_for('api.edit_outlier_stage', stage_index=loop.index0) }}"
+               class="btn btn-sm btn-outline-primary me-1">Edit</a>
+            {% elif stage.type == 'validation_rules' %}
+            <a href="{{ url_for('api.edit_validation_rule_stage', stage_index=loop.index0) }}"
+               class="btn btn-sm btn-outline-primary me-1">Edit</a>
+            {% elif stage.type == 'integrity_checks' %}
+            <a href="{{ url_for('api.edit_integrity_stage', stage_index=loop.index0) }}"
+               class="btn btn-sm btn-outline-primary me-1">Edit</a>
+            {% endif %}
+            <form method="POST" action="{{ url_for('api.delete_stage', stage_index=loop.index0) }}"
+                  onsubmit="return confirm('Delete this stage?');" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+        </td>
     </tr>
     {% endfor %}
-  </tbody>
+    </tbody>
 </table>
 
 <!-- Run summary -->

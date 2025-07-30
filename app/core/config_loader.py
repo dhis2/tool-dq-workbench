@@ -31,12 +31,33 @@ class ConfigManager:
         if not api_utils.ping():
             raise ValueError("DHIS2 server is unreachable or token is invalid (ping failed)")
 
+        cls._validate_max_results(api_utils, config)
         cls._validate_default_coc(config)
+
+    @classmethod
+    def _validate_max_results(cls, api_utils, config):
+        max_results = cls._validate_max_results_within_bounds(config)
+        system_settings = api_utils.fetch_system_settings()
+        if system_settings:
+            key_data_quality_max_limit = system_settings.get('keyDataQualityMaxLimit', 500)
+            if key_data_quality_max_limit < max_results:
+                raise ValueError(
+                    f"Configured max_results ({max_results}) exceeds system setting keyDataQualityMaxLimit ({key_data_quality_max_limit})"
+                )
+
+    @classmethod
+    def _validate_max_results_within_bounds(cls, config):
+        # Check the keyDataQualityMaxLimit in system settings is greater than or equal to the configured max_results
+        max_results = config['server'].get('max_results', 500)
+        if not (500 <= max_results <= 50000):
+            raise ValueError(f"max_results must be between 500 and 50000, got {max_results}")
+        return max_results
 
     @classmethod
     def validate_structure(cls, config: dict):
         cls._validate_base_url(config['server']['base_url'])
         cls._validate_api_token(config['server']['base_url'], config['server']['d2_token'])
+        cls._validate_max_results_within_bounds(config)
         #We need at least analyzer_stages or min_max_stages
         if 'analyzer_stages' not in config and 'min_max_stages' not in config:
             raise ValueError("Configuration must contain either 'analyzer_stages' or 'min_max_stages'")
@@ -66,7 +87,7 @@ class ConfigManager:
         params = stage['params']
         stage_type = stage['type']
         if stage_type == 'validation_rules':
-            required = ['validation_rule_groups', 'destination_data_element']
+            required = ['validation_rule_group', 'destination_data_element']
         elif stage_type == 'outlier':
             required = ['dataset', 'algorithm', 'destination_data_element']
         elif stage_type == 'min_max':

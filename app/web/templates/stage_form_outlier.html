@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block content %}
- {% include "partials/_flashes.html" %}
+  {% include "partials/_flashes.html" %}
   <h1>{{ 'Edit' if edit else 'Create' }} Outlier Stage</h1>
 
   <form method="post">
@@ -29,16 +29,16 @@
       <input class="form-control" id="duration" name="duration" value="{{ stage.duration or '12 months' }}" required>
     </div>
 
-<div class="mb-3">
-  <label class="form-label" for="dataset">Dataset</label>
-  <select id="dataset" name="dataset" placeholder="Search..." class="form-select">
-    {% if stage.params.dataset %}
-      <option value="{{ stage.params.dataset }}" selected>
-        {{ ds_name or stage.params.dataset }}
-      </option>
-    {% endif %}
-  </select>
-</div>
+    <div class="mb-3">
+      <label class="form-label" for="dataset">Dataset</label>
+      <select id="dataset" name="dataset" class="form-select">
+        {% if stage.params.dataset %}
+          <option value="{{ stage.params.dataset }}" selected>
+            {{ ds_name or stage.params.dataset }}
+          </option>
+        {% endif %}
+      </select>
+    </div>
 
     <div class="mb-3">
       <label class="form-label" for="algorithm">Algorithm</label>
@@ -51,21 +51,27 @@
 
     <div class="mb-3">
       <label class="form-label" for="threshold">Threshold</label>
-      <input class="form-control" id="threshold" name="threshold" type="number" value="{{ stage.params.threshold or 3 }}">
+      <input class="form-control" id="threshold" name="threshold" type="number" value="{{ stage.params.threshold or 3 }}" required>
     </div>
 
-<div class="mb-3">
-  <label class="form-label" for="destination_data_element">Destination Data Element</label>
-  <select id="destination_data_element" name="destination_data_element" placeholder="Search..." class="form-select">
-    {% if stage.params.destination_data_element %}
-  <option value="{{ stage.params.destination_data_element }}" selected>
-    {{ data_element_name or stage.params.destination_data_element }}
-  </option>
-{% endif %}
+    <div class="mb-3">
+      <label class="form-label" for="destination_data_element">Destination Data Element</label>
+      <select id="destination_data_element" name="destination_data_element" class="form-select">
+        {% if stage.params.destination_data_element %}
+          <option value="{{ stage.params.destination_data_element }}" selected>
+            {{ data_element_name or stage.params.destination_data_element }}
+          </option>
+        {% endif %}
+      </select>
+    </div>
 
-  </select>
-</div>
+    <div class="mb-3 form-check">
+      <input class="form-check-input" type="checkbox" id="active" name="active" {% if stage.active %}checked{% endif %}>
+      <label class="form-check-label" for="active">Active</label>
+    </div>
+
     <button class="btn btn-primary" type="submit">{{ 'Update' if edit else 'Create' }} Stage</button>
     <a class="btn btn-secondary" href="{{ url_for('ui.index') }}">Cancel</a>
   </form>
 {% endblock %}
+

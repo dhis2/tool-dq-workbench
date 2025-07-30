@@ -9,8 +9,8 @@ from requests import RequestException
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.numeric_value_types import NumericValueType
 from app.core.period_utils import Dhis2PeriodUtils
-from app.generators.min_max_results_tracker import ResultTracker
-from app.generators.min_max_statistics import (
+from app.minmax.min_max_results_tracker import ResultTracker
+from app.minmax.min_max_statistics import (
     compute_statistical_bounds,
     select_method_for_median,
     past_values_max_bounds
@@ -67,6 +67,7 @@ class MinMaxFactory:
                     min_max_results.append(min_max)
             except Exception as e:
                 logging.error(f"Error computing min/max for ({ou_id}, {de_id}, {coc_id}): {e}")
+                logging.error(f"Values: {values}")
         logging.info(f"Computed {len(min_max_results)} min/max value sets.")
         return min_max_results
 
@@ -210,7 +211,7 @@ class MinMaxFactory:
             return {
                 "successful": successful,
                 "ignored": ignored,
-                "message": f"Successfully posted {successful} min-max values using legacy API"
+                "message": f"Successfully posted {successful} minmax values using legacy API"
             }
 
     async def _post_single_min_max_value(self, data, session):
@@ -350,7 +351,7 @@ class MinMaxFactory:
                        de.get('dataElement', {}).get('valueType') in NumericValueType.list()]
         url = f'{self.base_url}/api/minMaxDataElements?filter=dataElement.id:in:[', ','.join(
             [de['dataElement']['id'] for de in numeric_des]), ']'
-        url = f"{url}&filter=source.id:in:[{','.join(stage.get('org_units', []))}]"
+        url = f"{url}&filter=source.id:in:[{','.join(prepared_stage.get('org_units', []))}]"
         url = f"{url}&filter=generated:eq:", str(generated).lower()
         #Skip paging
         url = f"{url}&paging=false"
@@ -368,8 +369,14 @@ class MinMaxFactory:
         if not values:
             return None
 
-        periods_with_data = len(values)
-        required_periods = math.ceil(stage["period_count"] * stage["completeness_threshold"])
+        values = [v for v in values if isinstance(v, (int, float))]
+        #Since we are potentially using Box Cox all values must be positive
+        values = [v for v in values if v > 0]
+        periods_with_data = float(len(values))
+        completeness_threshold = float(stage.get("completeness_threshold", self.config.get("completeness_threshold", 0.1)))
+        period_count = float(stage.get("period_count"))
+
+        required_periods = math.ceil(period_count * completeness_threshold)
         if periods_with_data < required_periods:
             self.result_tracker.add_missing()
             return None
@@ -381,17 +388,22 @@ class MinMaxFactory:
         val_min, val_max, comment = compute_statistical_bounds(values, method, threshold)
 
         if not math.isfinite(val_min) or not math.isfinite(val_max):
-            self.result_tracker.add_error()
+            self.result_tracker.add_fallback()
             val_max, val_min = past_values_max_bounds(values, 1.5)
-            comment += " - Fallback to PREV_MAX"
+            comment += " - Fallback to IQR"
 
         val_max = math.ceil(val_max)
         val_min = math.floor(val_min)
 
         is_outlier = max(values) > val_max or min(values) < val_min
         if is_outlier:
-            self.result_tracker.add_outlier()
-            comment = f"{comment} - Outlier detected"
+            self.result_tracker.add_bound_warning()
+            comment += " - Bounds may be too narrow (historical values exceed)"
+
+        if val_max == val_min:
+            self.result_tracker.add_error()
+            logging.warning(f"Min and max are equal for DE {de_id} in OU {ou_id} with values: {values}")
+            return None
 
         return {
             "min": val_min,

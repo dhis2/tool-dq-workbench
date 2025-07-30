@@ -34,7 +34,7 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             #Append to the params
             stage['params']['current_period'] = current_period
             #Get the level one orgunit
-            orgunit = await  self.api_utils.get_organisation_units_at_level(1,session)
+            orgunit = await  self.api_utils.get_organisation_units_at_level(1,session, semaphore)
             #Append this to the params
             if len(orgunit) == 0:
                 raise ValueError("No level one organisation unit found")

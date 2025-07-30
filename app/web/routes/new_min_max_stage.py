@@ -3,17 +3,10 @@ from flask import Blueprint, current_app, request, render_template, redirect, ur
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
-from app.web.utils.config_helpers import load_config, save_config, resolve_uid_name
+from app.web.routes.edit_min_max_stage import default_minmax_stage
+from app.web.utils.config_helpers import load_config, save_config
 from app.web.routes.api import api_bp
-# Utility to generate a blank minmax stage
-def default_minmax_stage():
-    return {
-        'name': '',
-        'datasets': [],
-        'groups': [{'limitmedian': '', 'method': '', 'threshold': ''}],
-        'orgunits': [],
-        'previous_periods': 12
-    }
+
 
 @api_bp.route('/new_minmax_stage', methods=['GET', 'POST'], endpoint = 'new_minmax_stage')
 def new_minmax_stage_view():
@@ -42,9 +35,9 @@ def new_minmax_stage_view():
         group_indices = sorted(set(group_indices))
         for i in group_indices:
             group = {
-                'limitMedian': request.form.get(f'groups-{i}-limitMedian'),
+                'limitMedian': float(request.form.get(f'groups-{i}-limitMedian')),
                 'method': request.form.get(f'groups-{i}-method'),
-                'threshold': request.form.get(f'groups-{i}-threshold')
+                'threshold': float(request.form.get(f'groups-{i}-threshold')),
             }
             if group['limitMedian'] and group['method'] and group['threshold']:
                 new_stage['groups'].append(group)
@@ -52,10 +45,10 @@ def new_minmax_stage_view():
             config['min_max_stages'].append(new_stage)
             ConfigManager.validate_structure(config)
             save_config(server_config_path, config)
-            flash('New min-max stage added.', 'success')
+            flash('New minmax stage added.', 'success')
             return redirect(url_for('ui.min_max_index'))
         except Exception as e:
-            flash(f"Error adding new min-max stage: {str(e)}", 'danger')
+            flash(f"Error adding new minmax stage: {str(e)}", 'danger')
             return render_template("stage_form_min_max.html", stage=new_stage, edit=False)
 
     return render_template("stage_form_min_max.html", stage=default_minmax_stage(), edit=False)

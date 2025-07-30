@@ -4,12 +4,12 @@ import time
 import aiohttp
 from flask import current_app, jsonify, request
 
-from app.generators.min_max_factory import MinMaxFactory
+from app.minmax.min_max_factory import MinMaxFactory
 from app.web.routes.api import api_bp
 from app.web.utils.config_helpers import load_config
 
 
-@api_bp.route('/run-min-max-stage/<int:stage_index>', methods=['POST'], endpoint='run_min_max_stage')
+@api_bp.route('/run-minmax-stage/<int:stage_index>', methods=['POST'], endpoint='run_min_max_stage')
 def run_min_max_stage(stage_index):
     try:
         start_time = time.time()
@@ -39,10 +39,11 @@ def run_min_max_stage(stage_index):
         return jsonify({
             "success": True,
             "Value errors": result_summary.get("errors", []),
+            "Value fallbacks": result_summary.get("fallbacks", 0),
             "Values ignored": result_summary.get("ignored", 0),
             "Values imported": result_summary.get("imported", 0),
             "Values missing": result_summary.get("missing", 0),
-            "Outliers detected": result_summary.get("outliers", 0),
+            "Bound warnings": result_summary.get("bound_warnings", 0),
             "Duration": f"{process_duration:.2f} seconds",
         })
     except Exception as e:

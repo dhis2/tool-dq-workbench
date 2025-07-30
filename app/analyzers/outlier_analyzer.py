@@ -19,7 +19,7 @@ class OutlierAnalyzer(StageAnalyzer):
             if isinstance(organisation_unit, list):
                 ous = organisation_unit
             else:
-                ous = await self.get_organisation_units_at_level(stage['level'], session)
+                ous = await self.get_organisation_units_at_level(stage['level'], session, semaphore)
 
             max_results = params.get('max_results', self.config['server'].get('max_results', 500))
 

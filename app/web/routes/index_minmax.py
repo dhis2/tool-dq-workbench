@@ -7,5 +7,10 @@ from .ui_blueprint import ui_bp
 def min_max_index():
     with open(current_app.config['CONFIG_PATH']) as f:
         config = yaml.safe_load(f)
-    min_max_stage_exists = any(stage.get('name') for stage in config['min_max_stages'])
+
+    # Gracefully handle missing or empty min_max_stages
+    min_max_stages = config.get('min_max_stages', [])
+    min_max_stage_exists = any(stage.get('name') for stage in min_max_stages)
+
     return render_template("index_minmax.html", config=config, min_max_stage_exists=min_max_stage_exists)
+
