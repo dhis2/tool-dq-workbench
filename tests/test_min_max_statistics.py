@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 import pytest
-from generators.min_max_statistics import (
+from app.minmax.min_max_statistics import (
     check_no_variance,
     past_values_max_bounds,
     values_z_score,
@@ -15,14 +15,14 @@ select_method_for_median
 
 @pytest.fixture
 def simple_data():
-    return pd.DataFrame({"value": [10, 15, 20, 25, 30]})
+    return  [10, 15, 20, 25, 30]
 
 def test_check_no_variance_low():
-    df = pd.DataFrame({"value": [100, 100, 100, 100]})
-    assert check_no_variance(df)
+    d = [100, 100, 100, 100]
+    assert check_no_variance(d)
 
 def test_check_no_variance_high():
-    df = pd.DataFrame({"value": [10, 20, 30]})
+    df =  [10, 20, 30]
     assert not check_no_variance(df)
 
 def test_past_values_max_bounds(simple_data):

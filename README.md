@@ -1,10 +1,22 @@
 # Validation Rule Monitoring App for DHIS2
 
 ## Overview
-The Validation Rule Monitoring App is a server-side script designed for use with DHIS2. This app focuses on improving data quality by monitoring and analyzing validation rule violations over a specified time period, specifically targeting data inconsistencies that impact health reporting and decision-making.
+The Data Quality Workbench is a server-side app designed for use with DHIS2. 
+This app focuses on improving data quality by monitoring and analyzing validation rules, outliers
+and metadata inconsistencies. The app is also capable of helping you to generate min-max values
+for your data.
+
+The app has a user interface that will help you to create a configuration file. This configuration file can consist
+of multiple stages. Once you have created the configuration file, a command line script can be scheduled to run daily.
+
+From a high level, the app will:
+1. Retrieve validation rule violations, outliers and metadata integrity checks from DHIS2 for a specified time period.
+2. The number of issues for a given organisation will be counted, and transformed into a numeric value. 
+3. This numeric value will be stored in DHIS2 as a normal data element value.
 
 ### What are Validation Rules in DHIS2?
-Validation rules in DHIS2 are logical checks applied to reported data to ensure accuracy and consistency. As an example, consider a health facility that reports HIV testing data. A validation rule for this scenario could be:
+Validation rules in DHIS2 are logical checks applied to reported data to ensure accuracy and consistency. 
+As an example, consider a health facility that reports HIV testing data. A validation rule for this scenario could be:
 
 ```
 The number of people testing positive for HIV must be less than or equal to the number of people who were tested for HIV.

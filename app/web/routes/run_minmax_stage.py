@@ -2,7 +2,7 @@ import asyncio
 import time
 
 import aiohttp
-from flask import current_app, jsonify, request
+from flask import current_app, jsonify
 
 from app.minmax.min_max_factory import MinMaxFactory
 from app.web.routes.api import api_bp
@@ -32,7 +32,7 @@ def run_min_max_stage(stage_index):
                 async with semaphore:
                     return await min_max_factory.run_stage(stage, session, semaphore)
 
-        result = asyncio.run(run())
+        asyncio.run(run())
         result_summary = min_max_factory.result_tracker.get_summary()
         end_time = time.time()
         process_duration = end_time - start_time
