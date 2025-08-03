@@ -24,6 +24,16 @@ def default_outlier_stage():
         }
     }
 
+def resolve_name(fetch_func, uid):
+        if not uid:
+            return ''
+        try:
+            result = fetch_func(uid)
+            return result.get('name') or uid
+        except requests.exceptions.RequestException:
+            flash(f"Warning: Failed to fetch name for {uid}", 'warning')
+            return uid
+
 
 @api_bp.route('/outlier-stage', methods=['GET', 'POST'], endpoint='new_outlier_stage')
 @api_bp.route('/outlier-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_outlier_stage')
@@ -53,20 +63,12 @@ def outlier_stage_view(stage_index=None):
 
     # Fetch data element and dataset names
     de_uid = stage['params'].get('destination_data_element')
-    ds_uid = stage['params'].get('dataset')
-
-    def resolve_name(fetch_func, uid):
-        if not uid:
-            return ''
-        try:
-            result = fetch_func(uid)
-            return result.get('name') or uid
-        except requests.exceptions.RequestException:
-            flash(f"Warning: Failed to fetch name for {uid}", 'warning')
-            return uid
-
     de_name = resolve_name(api_utils.fetch_data_element_by_id, de_uid)
+    ds_uid = stage['params'].get('dataset')
     ds_name = resolve_name(api_utils.fetch_dataset_by_id, ds_uid)
+    monitoring_group_uid = stage['params'].get('monitoring_group')
+    deg_name = resolve_name(api_utils.fetch_data_element_group_by_id, monitoring_group_uid)
+
 
     # Handle form submission
     if request.method == 'POST':
@@ -104,5 +106,6 @@ def outlier_stage_view(stage_index=None):
         stage=deepcopy(stage),
         edit=is_edit,
         data_element_name=de_name,
-        ds_name=ds_name
+        ds_name=ds_name,
+        deg_name=deg_name,
     )

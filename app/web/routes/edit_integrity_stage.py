@@ -19,10 +19,10 @@ def default_integrity_stage():
         'active': True,
         'type': 'integrity_checks',
         'level': 1,
-        'duration': '12 months',
         'params': {
             'monitoring_group': '',
-            'period_type': 'Monthly'
+            'period_type': 'Monthly',
+            'dataset': ''
         }
     }
 
@@ -37,8 +37,8 @@ def validate_stage(stage):
         raise ValueError("Monitoring group must be specified")
     if not stage.get('params', {}).get('period_type'):
         raise ValueError("Period type must be specified")
-    if not isinstance(stage.get('level'), int) or stage['level'] < 1:
-        raise ValueError("Organisation unit level must be a positive integer")
+    if not stage.get('params', {}).get('dataset'):
+        raise ValueError("Dataset must be specified")
 
 
 def get_data_element_group_name(api_utils, deg_uid):
@@ -46,7 +46,7 @@ def get_data_element_group_name(api_utils, deg_uid):
     try:
         deg_name = api_utils.fetch_data_element_group_by_id(deg_uid)
         logging.debug("Fetched data element group name: %s", deg_name)
-        return deg_name
+        return deg_name.get('name', deg_uid) if deg_name else deg_uid
     except requests.exceptions.RequestException:
         flash(f"Warning: Failed to fetch data element group name for {deg_uid}", 'warning')
         return deg_uid
@@ -92,6 +92,7 @@ def integrity_stage_view(stage_index=None):
     # Get data element group name for display
     deg_uid = stage['params'].get('monitoring_group', '')
     deg_name = get_data_element_group_name(api_utils, deg_uid) if deg_uid else ''
+
 
     if request.method == 'POST':
         # Update stage from form data

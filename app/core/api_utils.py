@@ -205,6 +205,9 @@ class Dhis2ApiUtils:
         response.raise_for_status()
         return response.json()
 
-
-def generate_uid():
-    return None
+    def get_metadata_integrity_checks(self):
+        # GET /api/dataIntegrity
+        url = f'{self.base_url.rstrip("/")}/api/dataIntegrity'
+        response = requests.get(url, headers=self.request_headers)
+        response.raise_for_status()
+        return response.json()

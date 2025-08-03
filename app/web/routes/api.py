@@ -87,7 +87,8 @@ def api_data_element_groups():
     )
     query = request.args.get('q', '').strip()
     try:
-        groups = utils.fetch_data_element_groups(query)
+        filters = [f"name:ilike:{query}"] if query else []
+        groups = utils.fetch_data_element_groups(filters=filters)
         return jsonify([{"id": g["id"], "text": g["name"]} for g in groups[:20]])
     except Exception as e:
         return jsonify({"error": str(e)}), 500

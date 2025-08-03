@@ -93,7 +93,7 @@ class ConfigManager:
         elif stage_type == 'min_max':
             required = ['dataset', 'destination_data_element']
         elif stage_type == 'integrity_checks':
-            required = ['monitoring_group', 'period_type']
+            required = ['monitoring_group', 'period_type','dataset']
         else:
             raise ValueError(f"Unknown stage type '{stage_type}' in stage '{stage['name']}'")
         for param in required:

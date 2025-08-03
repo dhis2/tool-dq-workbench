@@ -1,22 +1,35 @@
 <script>
   document.addEventListener("DOMContentLoaded", function () {
-      const degEl = document.getElementById("monitoring_group");
+    const degEl = document.getElementById("monitoring_group");
     if (!degEl) return;
-  new TomSelect(degEl, {
-    valueField: "id",
-    labelField: "text",
-    searchField: "text",
-    load: function(query, callback) {
-      if (query.length < 3) return callback();
-      fetch(`/api/data-element-groups?q=${encodeURIComponent(query)}`)
-        .then(response => response.json())
-        .then(callback)
-        .catch(() => callback());
-    },
-    preload: true,
+
+    const config = {
+      valueField: "id",
+      labelField: "text",
+      searchField: "text",
+      placeholder: "Search for data element groups...",
+      load: function(query, callback) {
+        if (query.length < 3) return callback();
+        fetch(`/api/data-element-groups?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(callback)
+          .catch(() => callback());
+      },
+      preload: true,
+      create: false
+    };
+
     {% if stage.params.monitoring_group %}
-    items: ["{{ stage.params.monitoring_group }}"],
+      config.options = [{
+        id: "{{ stage.params.monitoring_group }}",
+        text: "{{ deg_name or stage.params.monitoring_group }}"
+      }];
+      config.items = ["{{ stage.params.monitoring_group }}"];
+    {% else %}
+      config.options = [];
+      config.items = [];
     {% endif %}
+
+    new TomSelect(degEl, config);
   });
-      });
 </script>

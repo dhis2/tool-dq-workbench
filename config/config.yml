@@ -1,9 +1,9 @@
 server:
-  base_url: http://localhost:9090
-  d2_token: d2p_wX9GIf0fuxATBtKwvWHTj6xQh6ao49lfwkL92bDkldbq412A8B
+  base_url: https://play.im.dhis2.org/stable-2-42-1
+  d2_token: d2p_SgkHYDICP2zV8jCtT01i5LVgmS0r8BlZmNZzGVpXJxgN0YCodL
   logging_level: INFO
   max_concurrent_requests: 5
-  max_results: 5000
+  max_results: 500
 min_max_stages:
  - name: Generate min-max for morbidity
    datasets:
@@ -28,5 +28,5 @@ analyzer_stages:
   params:
     destination_data_element: x1H70U9MVmX
     period_type: Monthly
-    validation_rule_groups: s26nobLp9j7
+    validation_rule_group: s26nobLp9j7
   type: validation_rules
