@@ -25,6 +25,23 @@ class Dhis2ApiUtils:
             response.raise_for_status()
             return await response.json()
 
+    def post_metadata(self, metadata):
+        """
+        Post metadata to the DHIS2 API.
+        Note that this method is synchronous so should not be used in an async context.
+        :param metadata: Metadata to post (dict).
+        :return: Response from the API.
+        """
+        url = f'{self.base_url}/api/metadata'
+        headers = self.request_headers.copy()
+        headers['Content-Type'] = 'application/json'
+        if self.d2_token:
+            headers['Authorization'] = f'ApiToken {self.d2_token}'
+        response = requests.post(url, json=metadata, headers=headers)
+        response.raise_for_status()
+        return response
+
+
     async def get_server_version(self, session):
         settings = await self.get_system_info(session)
         version = settings.get('version')
@@ -139,6 +156,10 @@ class Dhis2ApiUtils:
     def fetch_data_element_by_id(self, uid):
         resp = self.fetch_metadata_list('dataElements', 'dataElements', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
         return  resp[0] if resp else None
+
+    def fetch_organisation_unit_by_id(self, uid):
+        resp = self.fetch_metadata_list('organisationUnits', 'organisationUnits', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
 
     def fetch_data_element_group_by_id(self, uid):
         resp = self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', filters=[f'id:eq:{uid}'], fields=['id', 'name'])

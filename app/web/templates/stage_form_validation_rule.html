@@ -21,13 +21,13 @@
 
     <div class="mb-3">
         <label class="form-label" for="orgunit_level">Org Unit Level</label>
-        <input class="form-control" id="orgunit_level" name="orgunit_level" type="number" value="{{ stage.level }}"
+        <input class="form-control" id="orgunit_level" name="orgunit_level" type="number" value="{{ stage.params.level }}"
                required>
     </div>
 
     <div class="mb-3">
         <label class="form-label" for="duration">Duration (e.g. 12 months)</label>
-        <input class="form-control" id="duration" name="duration" value="{{ stage.duration }}" required>
+        <input class="form-control" id="duration" name="duration" value="{{ stage.params.duration }}" required>
     </div>
 
     <div class="mb-3">

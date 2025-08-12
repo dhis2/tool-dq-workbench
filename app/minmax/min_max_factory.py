@@ -68,6 +68,7 @@ class MinMaxFactory:
             except Exception as e:
                 logging.error(f"Error computing min/max for ({ou_id}, {de_id}, {coc_id}): {e}")
                 logging.error(f"Values: {values}")
+                logging.error(f"Minmax: {min_max}")
         logging.info(f"Computed {len(min_max_results)} min/max value sets.")
         return min_max_results
 
@@ -250,12 +251,12 @@ class MinMaxFactory:
             return resp[0]
 
     def prepare_stage(self, stage):
-        datasets = stage.get('datasets')
-        if not datasets:
-            # fallback for old format with single dataset
-            datasets = [stage.get('dataset')]
-
         prepared_stages = []
+
+        filtered_data_elements = self._resolve_filtered_data_elements(stage)
+
+        datasets = stage.get('datasets', [])
+
         for dataset in datasets:
             dataset_metadata = self.get_dataset_metadata(dataset)
             dataset_period_type = dataset_metadata.get('periodType')
@@ -282,12 +283,37 @@ class MinMaxFactory:
                 'start_date': self.period_utils.get_start_date_from_period(periods[0]),
                 'end_date': self.period_utils.get_end_date_from_period(periods[-1]),
                 'org_units': stage.get('org_units'),
+                'filtered_data_elements': filtered_data_elements,
                 'completeness_threshold': stage.get('completeness_threshold',
                                                     self.config.get("completeness_threshold", 0.1)),
                 'groups': stage.get('groups'),
             })
 
         return prepared_stages
+
+    def _resolve_filtered_data_elements(self, stage):
+        data_element_groups = stage.get('data_element_groups') or []
+        data_elements = stage.get('data_elements') or []
+
+        if not data_element_groups and not data_elements:
+            return []
+
+        data_elements_filter = []
+
+        for group in data_element_groups:
+            group_metadata = self.api_utils.fetch_data_element_groups(
+                fields="id,name,dataElements[id,valueType]",
+                filters=[f'id:eq:{group}']
+            )
+            data_elements = group_metadata.get('dataElements', [])
+            data_elements_filter.extend(
+                [de['id'] for de in data_elements if de.get('valueType') in NumericValueType.list()]
+            )
+
+        for de in data_elements:
+            data_elements_filter.append(de)
+        # Remove duplicates
+        return list(set(data_elements_filter))
 
     async def fetch_datavalues_for_orgunit(self, prepared_stage, org_unit, session, semaphore):
         """
@@ -318,6 +344,12 @@ class MinMaxFactory:
                         dv for dv in resp.get('dataValues', [])
                         if dv.get('dataElement') in [de['dataElement']['id'] for de in numeric_des]
                     ]
+                    #Filter out the data elements which are part of the filtered data elements
+                    if prepared_stage['filtered_data_elements']:
+                        data_values = [
+                            dv for dv in data_values
+                            if dv.get('dataElement') in prepared_stage['filtered_data_elements']
+                        ]
                     return {'dataValues': data_values}
                 else:
                     raise RequestException(f"Failed to fetch data values: {response.status} - {await response.text()}")
@@ -370,8 +402,16 @@ class MinMaxFactory:
             return None
 
         values = [v for v in values if isinstance(v, (int, float))]
-        #Since we are potentially using Box Cox all values must be positive
-        values = [v for v in values if v > 0]
+        #Adjust numbers to be positive, as min/max values are always positive
+        min_value = min(values)
+        #Arbitrary small epsilon to avoid zero values which will lead to problems with Box/Cox
+        epsilon = 1e-3
+        if min_value <= 0:
+            min_value_offset = abs(min_value) + epsilon
+            values = [v + min_value_offset for v in values]
+            logging.info(f"Adjusted values for DE {de_id} in OU {ou_id} to be positive: {values}")
+        else:
+            min_value_offset = 0
         periods_with_data = float(len(values))
         completeness_threshold = float(stage.get("completeness_threshold", self.config.get("completeness_threshold", 0.1)))
         period_count = float(stage.get("period_count"))
@@ -385,15 +425,37 @@ class MinMaxFactory:
         median_val = statistics.median(values)
 
         method, threshold = select_method_for_median(stage.get("groups", []), median_val)
-        val_min, val_max, comment = compute_statistical_bounds(values, method, threshold)
 
-        if not math.isfinite(val_min) or not math.isfinite(val_max):
-            self.result_tracker.add_fallback()
-            val_max, val_min = past_values_max_bounds(values, 1.5)
-            comment += " - Fallback to IQR"
+        if method == "CONSTANT":
+            #Filter the groups which have method as CONSTANT
+            constant_groups = [g for g in stage.get("groups", []) if g.get("method") == "CONSTANT"]
+            #Chose the group whose limitMedian is the closest to the median value
+            constant_group = min(constant_groups, key=lambda g: abs(g.get("limitMedian", float('inf')) - median_val), default=None)
+            #Get the min and max constants from the group
+            min_constant = constant_group.get("constantMin", None)
+            max_constant = constant_group.get("constantMax", None)
+            if not isinstance(min_constant, int) or not isinstance(max_constant, int):
+                self.result_tracker.add_error()
+                logging.error(f"Invalid constant values for DE {de_id} in OU {ou_id}: {min_constant}, {max_constant}")
+                return None
+            if min_constant >= max_constant:
+                self.result_tracker.add_error()
+                logging.error(f"Min constant is greater than or equal to max constant for DE {de_id} in OU {ou_id}: {min_constant} > {max_constant}")
+                return None
+            val_min = min_constant
+            val_max = max_constant
+            comment = "CONSTANT"
+        else:
+            val_min, val_max, comment = compute_statistical_bounds(values, method, threshold)
 
-        val_max = math.ceil(val_max)
-        val_min = math.floor(val_min)
+            if not math.isfinite(val_min) or not math.isfinite(val_max):
+                self.result_tracker.add_fallback()
+                val_max, val_min = past_values_max_bounds(values, 1.5)
+                comment += " - Fallback to Prev max"
+
+            #Need to offset back with the min_value adjustment
+            val_max = math.ceil(val_max - min_value_offset)
+            val_min = math.floor(val_min - min_value_offset)
 
         is_outlier = max(values) > val_max or min(values) < val_min
         if is_outlier:

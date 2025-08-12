@@ -6,7 +6,7 @@ from app.core.config_loader import ConfigManager
 from app.core.uid_utils import UidUtils
 from app.minmax.min_max_method import MinMaxMethod
 from app.web.routes.api import api_bp
-from app.web.utils.config_helpers import load_config, save_config
+from app.web.utils.config_helpers import  save_config
 
 @api_bp.route('/minmax-stage', methods=['GET', 'POST'], endpoint='new_minmax_stage')
 @api_bp.route('/minmax-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_minmax_stage')
@@ -14,7 +14,7 @@ def minmax_stage_view(stage_index=None):
     config_path = current_app.config['CONFIG_PATH']
 
     try:
-        config = load_config(config_path)
+        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
     except ValueError as e:
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
@@ -32,8 +32,10 @@ def minmax_stage_view(stage_index=None):
         stage['uid'] = stage.get('uid', UidUtils.generate_uid())
         stage['completeness_threshold'] = float(request.form.get('completeness_threshold', 0.1))
         stage['active'] = request.form.get('active', 'off') == 'on'
-        stage['previous_periods'] = int(request.form['previous_periods'], 12)
+        stage['duration'] = request.form.get('duration') or '12 months'
         stage['datasets'] = [d.strip() for d in request.form.get('datasets', '').split(',') if d.strip()]
+        stage['data_element_groups'] = [d.strip() for d in request.form.get('data_element_groups', '').split(',') if d.strip()]
+        stage['data_elements'] = [d.strip() for d in request.form.get('data_elements', '').split(',') if d.strip()]
         stage['org_units'] = [o.strip() for o in request.form.get('org_units', '').split(',') if o.strip()]
         stage['groups'] = []
 
@@ -43,7 +45,7 @@ def minmax_stage_view(stage_index=None):
             if not is_edit:
                 config.setdefault('min_max_stages', []).append(stage)
 
-            ConfigManager.validate_structure(config)
+            ConfigManager(config_path = None, config=config, validate_structure=True, validate_runtime=False)
             save_config(config_path, config)
             flash(f"{'Updated' if is_edit else 'New'} min/max stage saved.", 'success')
             return redirect(url_for('ui.min_max_index'))
@@ -69,14 +71,28 @@ def process_min_max_groups(stage):
         if key.startswith('groups-') and key.endswith('-limitMedian')
            and key.split('-')[1].isdigit()
     })
+
     for i in group_indices:
+        method = request.form.get(f'groups-{i}-method')
+
         group = {
             'limitMedian': float(request.form.get(f'groups-{i}-limitMedian')),
-            'method': request.form.get(f'groups-{i}-method'),
-            'threshold': float(request.form.get(f'groups-{i}-threshold'))
+            'method': method,
+            'threshold': float(request.form.get(f'groups-{i}-threshold')),
         }
-        if all(group.values()):
+
+        if method == 'CONSTANT':
+            const_min_val = request.form.get(f'groups-{i}-constantMin')
+            const_max_val = request.form.get(f'groups-{i}-constantMax')
+
+            if const_min_val not in (None, ''):
+                group['constantMin'] = int(float(const_min_val))
+            if const_max_val not in (None, ''):
+                group['constantMax'] = int(float(const_max_val))
+
+        if all(val not in (None, '') for val in group.values()):
             stage['groups'].append(group)
+
 
 def default_minmax_stage():
     return {

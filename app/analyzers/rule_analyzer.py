@@ -17,7 +17,7 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         if isinstance(organisation_unit, list):
             ous = organisation_unit
         else:
-            ous = await self.get_organisation_units_at_level(stage['level'], session, semaphore)
+            ous = await self.get_organisation_units_at_level(params['level'], session, semaphore)
 
         vrg = params['validation_rule_group']
         max_results = params.get('max_results', self.config['server'].get('max_results', 500))

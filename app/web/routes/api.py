@@ -1,8 +1,8 @@
 import logging
 
 from flask import Blueprint, current_app, request, jsonify
-from app.web.utils.config_helpers import load_config
 from app.core.api_utils import Dhis2ApiUtils
+from app.core.config_loader import ConfigManager
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -11,7 +11,7 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 def api_data_elements():
     import traceback
 
-    config = load_config(current_app.config['CONFIG_PATH'])
+    config = ConfigManager(current_app.config['CONFIG_PATH'])
     utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']

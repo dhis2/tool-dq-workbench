@@ -22,7 +22,7 @@
     {% if stage.params and stage.params.dataset %}
       config.options = [{
         id: "{{ stage.params.dataset }}",
-        text: "{{ dataset_name or stage.params.dataset }}"
+        text: "{{ ds_name or stage.params.dataset }}"
       }];
       config.items = ["{{ stage.params.dataset }}"];
     {% else %}

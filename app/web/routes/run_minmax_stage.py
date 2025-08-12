@@ -4,16 +4,17 @@ import time
 import aiohttp
 from flask import current_app, jsonify
 
+from app.core.config_loader import ConfigManager
 from app.minmax.min_max_factory import MinMaxFactory
 from app.web.routes.api import api_bp
-from app.web.utils.config_helpers import load_config
 
 
 @api_bp.route('/run-minmax-stage/<int:stage_index>', methods=['POST'], endpoint='run_min_max_stage')
 def run_min_max_stage(stage_index):
     try:
         start_time = time.time()
-        config = load_config(current_app.config['CONFIG_PATH'])
+        config_path = current_app.config.get('CONFIG_PATH')
+        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
         min_max_factory = MinMaxFactory(config)
 
         concurrency = config["server"].get("max_concurrent_requests", 5)

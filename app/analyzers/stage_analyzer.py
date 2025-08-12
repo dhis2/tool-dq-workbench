@@ -27,7 +27,7 @@ class StageAnalyzer(ABC):
     @staticmethod
     def get_start_date(stage):
         """Convenience wrapper for getting start date from duration"""
-        return Dhis2PeriodUtils.get_start_date_from_today(stage['duration'])
+        return Dhis2PeriodUtils.get_start_date_from_today(stage['params']['duration'])
 
     async def get_organisation_units_at_level(self, level, session, semaphore):
         return await self.api_utils.get_organisation_units_at_level(level, session, semaphore)

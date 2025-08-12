@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from app.core.period_utils import Dhis2PeriodUtils
 from app.analyzers.stage_analyzer import StageAnalyzer
 
 class OutlierAnalyzer(StageAnalyzer):
@@ -19,7 +20,7 @@ class OutlierAnalyzer(StageAnalyzer):
             if isinstance(organisation_unit, list):
                 ous = organisation_unit
             else:
-                ous = await self.get_organisation_units_at_level(stage['level'], session, semaphore)
+                ous = await self.get_organisation_units_at_level(params['level'], session, semaphore)
 
             max_results = params.get('max_results', self.config['server'].get('max_results', 500))
 
@@ -35,6 +36,12 @@ class OutlierAnalyzer(StageAnalyzer):
                 'destination_data_element': params['destination_data_element'],
                 'lower_bound': params.get('lower_bound', 0)
             }
+            #Optionally add date offsets if provided
+            if 'start_date_offset' in params:
+                query_common['start_date_offset'] = params['start_date_offset']
+            if 'end_date_offset' in params:
+                query_common['end_date_offset'] = params['end_date_offset']
+
 
             tasks = [
                 self._run_outlier_dataset_stage_async(session, {**query_common, 'ou': ou}, semaphore)
@@ -79,10 +86,12 @@ class OutlierAnalyzer(StageAnalyzer):
             ('ou', params['ou'])
         ]
 
-        if params.get('data_start_date'):
-            parameters.append(('dataStartDate', params['data_start_date']))
-        if params.get('data_end_date'):
-            parameters.append(('dataEndDate', params['data_end_date']))
+        if params.get('start_date_offset'):
+            start_date = Dhis2PeriodUtils.get_start_date_from_today(params.get('start_date_offset'))
+            parameters.append(('dataStartDate', start_date.strftime('%Y-%m-%d')))
+        if params.get('end_date_offset'):
+            end_date = Dhis2PeriodUtils.get_start_date_from_today(params.get('end_date_offset'))
+            parameters.append(('dataEndDate', end_date.strftime('%Y-%m-%d')))
 
         try:
             async with semaphore:

@@ -6,7 +6,7 @@ import requests
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
-from app.web.utils.config_helpers import load_config, save_config
+from app.web.utils.config_helpers import save_config
 from app.web.routes.api import api_bp
 from app.core.uid_utils import UidUtils
 from app.core.period_type import PeriodType
@@ -14,7 +14,7 @@ from app.core.period_type import PeriodType
 @api_bp.route('/validation-rule-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_validation_rule_stage')
 def validation_rule_stage_view(stage_index=None):
     config_path = current_app.config['CONFIG_PATH']
-    config = load_config(config_path)
+    config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
     is_edit = stage_index is not None
 
     if is_edit:
@@ -26,14 +26,14 @@ def validation_rule_stage_view(stage_index=None):
         stage = {
             'name': '',
             'type': 'validation_rules',
-            'level': 1,
-            'duration': '12 months',
             'params': {
+                'level': 1,
+                'duration': '12 months',
                 'validation_rule_group': '',
                 'period_type': '',
                 'destination_data_element': ''
             },
-            'active': False
+            'active': True
         }
 
     data_element_name = ''
@@ -67,8 +67,8 @@ def validation_rule_stage_view(stage_index=None):
     if request.method == 'POST':
         # Common updates
         stage['name'] = request.form['stage_name']
-        stage['level'] = int(request.form['orgunit_level'])
-        stage['duration'] = request.form['duration']
+        stage['params']['level'] = int(request.form['orgunit_level'])
+        stage['params']['duration'] = request.form['duration']
         stage['params']['validation_rule_group'] = request.form['validation_rule_group']
         stage['params']['period_type'] = request.form['period_type']
         stage['params']['destination_data_element'] = request.form['destination_data_element']

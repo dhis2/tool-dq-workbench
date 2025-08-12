@@ -3,14 +3,15 @@ from copy import deepcopy
 
 from flask import current_app, jsonify
 
+from app.core.config_loader import ConfigManager
 from app.runner import DataQualityMonitor
 from app.web.routes.api import api_bp
-from app.web.utils.config_helpers import load_config
+
 
 @api_bp.route('/run-stage/<int:stage_index>', methods=['POST'], endpoint='run_stage')
 def run_stage(stage_index):
     try:
-        full_config = load_config(current_app.config['CONFIG_PATH'])
+        full_config = ConfigManager(current_app.config['CONFIG_PATH'], config = None, validate_structure=True, validate_runtime=False).config
         stage = full_config['analyzer_stages'][stage_index]
 
         # Build minimal config for single stage

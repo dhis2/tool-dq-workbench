@@ -1,7 +1,9 @@
 import datetime
 import re
+from datetime import datetime
+
 from dateutil.relativedelta import relativedelta
-from datetime import datetime, timedelta
+
 
 class Dhis2PeriodUtils:
     @staticmethod

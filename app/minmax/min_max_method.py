@@ -6,6 +6,7 @@ class MinMaxMethod(Enum):
     MAD = "MAD"
     BOXCOX = "BOXCOX"
     IQR = "IQR"
+    CONSTANT = "CONSTANT"
 
     @classmethod
     def values(cls):
@@ -18,5 +19,6 @@ class MinMaxMethod(Enum):
             "ZSCORE": "Z-Score",
             "MAD": "MAD (Median Absolute Deviation)",
             "BOXCOX": "Box-Cox",
-            "IQR": "Interquartile Range (IQR)"
+            "IQR": "Interquartile Range (IQR)",
+            "CONSTANT": "Constant Value"
         }

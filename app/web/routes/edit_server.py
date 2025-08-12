@@ -1,14 +1,16 @@
 from flask import current_app, request, render_template, redirect, url_for, flash
 
+from app.core.config_loader import ConfigManager
 from app.web.routes.api import api_bp
-from app.web.utils.config_helpers import load_config, save_config
+from app.web.utils.config_helpers import save_config
 
 @api_bp.route('/edit-server', methods=['GET', 'POST'], endpoint='edit_server')
 def edit_server():
     config_path = current_app.config['CONFIG_PATH']
+    config = ConfigManager(config_path, config=None, validate_structure=True,
+                           validate_runtime=False).config
 
     if request.method == 'POST':
-        config = load_config(config_path)
 
         try:
             config['server'].setdefault('min_max_bulk_api_disabled', False)
@@ -39,5 +41,4 @@ def edit_server():
         return render_template("edit_server.html", server=config['server'])
 
     # GET request
-    config = load_config(config_path)
     return render_template("edit_server.html", server=config['server'])

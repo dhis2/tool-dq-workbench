@@ -169,13 +169,19 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
         #Return the data values
         return data_values
 
+
+    def _fetch_existing_integrity_des(self):
+        filters = ["name:$like:[MI]"]
+        return self.api_utils.fetch_data_elements(filters=filters, fields=["id", "name", "code"])
+
+
     def get_integrity_checks_no_data_elements(self):
         checks = self.api_utils.get_metadata_integrity_checks()
         #Exclude any slow or programmatic checks
         checks = [check for check in checks if not check["isSlow"] and not check["isProgrammatic"]]
-        des = self.get_dataelements_in_dataset()
+        des = self._fetch_existing_integrity_des()
         #Remove the MI_ prefix from each code
-        for de in des["dataSetElements"]:
+        for de in des["dataElements"]:
             this_code = de["dataElement"]["code"][3:]
             for check in checks:
                 if check["code"] == this_code:

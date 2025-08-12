@@ -1,10 +1,12 @@
 import argparse
 import logging
 import os
+
 from flask import Flask
-from flask_wtf import CSRFProtect
-from .routes import register_routes
+
 from app.core.config_loader import ConfigManager
+from .routes import register_routes
+
 
 def _configure_secret_key(app):
     secret_key = os.environ.get('FLASK_SECRET_KEY')
@@ -19,6 +21,7 @@ def _configure_app(app, config_path, skip_validation):
     validate = not skip_validation
     try:
         ConfigManager(config_path,
+                      config = None,
                       validate_structure=validate,
     validate_runtime=validate)
     except Exception as e:

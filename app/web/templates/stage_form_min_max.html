@@ -8,7 +8,6 @@
 {% include "partials/tom_select_dataset.html" %}
 {% endblock %}
 
-
 {% block content %}
 {% include "partials/_flashes.html" %}
 <h1>{{ 'Edit' if edit else 'Create' }} Min Max Generation Stage</h1>
@@ -26,83 +25,84 @@
     </div>
     <div class="mb-3">
         <label class="form-label" for="previous_periods">Previous periods</label>
-        <input class="form-control" id="previous_periods" name="previous_periods" type="number" min="0"
+        <input class="form-control" id="previous_periods" name="previous_periods" type="number" min="0" step="1"
                value="{{ stage.previous_periods or 24 }}" required>
     </div>
+    <div class="mb-3">
+        <label class="form-label" for="duration">Duration (e.g. 12 months)</label>
+        <input class="form-control" id="duration" name="duration" value="{{ stage.duration or '12 months' }}" required>
+    </div>
+
+
     <div class="mb-3">
         <label class="form-label" for="datasets">Datasets (comma separated UIDs)</label>
         <input class="form-control" id="datasets" name="datasets" type="text"
                value="{{ stage.datasets | join(',') if stage.datasets else '' }}" placeholder="e.g. uid1,uid2,uid3">
     </div>
+        <div class="mb-3">
+        <label class="form-label" for="data_element_groups">Data element groups (comma separated UIDs)</label>
+        <input class="form-control" id="data_element_groups" name="data_element_groups" type="text"
+               value="{{ stage.data_element_groups | join(',') if stage.data_element_groups else '' }}" placeholder="e.g. uid1,uid2,uid3">
+    </div>
+    <div class="mb-3">
+        <label class="form-label" for="data_elements">Data elements(comma separated UIDs)</label>
+        <input class="form-control" id="data_elements" name="data_elements" type="text"
+               value="{{ stage.data_elements | join(',') if stage.data_elements else '' }}" placeholder="e.g. uid1,uid2,uid3">
+    </div>
+
     <div class="mb-3">
         <label class="form-label" for="org_units">Org Units (comma separated UIDs)</label>
         <input class="form-control" id="org_units" name="org_units" type="text"
                value="{{ stage.org_units | join(',') if stage.org_units else '' }}" placeholder="e.g. ouid1,ouid2">
     </div>
+
     <h5>Groups</h5>
     <div id="groups">
         <button type="button" class="btn btn-secondary mb-3" id="addGroup">+ Add Group</button>
-        <script>
-            document.getElementById('addGroup').addEventListener('click', function() {
-              const groupsDiv = document.getElementById('groups');
-              const index = groupsDiv.children.length;
-              const newGroup = document.createElement('div');
-              newGroup.className = 'mb-3 border rounded p-2 mb-2';
-              newGroup.innerHTML = `
-                <label class="form-label" for="groups-${index}-limitMedian">Limit Median</label>
-                <input class="form-control" id="groups-${index}-limitMedian" name="groups-${index}-limitMedian" type="number" required>
-                <label class="form-label mt-2" for="groups-${index}-method">Method</label>
-                <select class="form-select" id="groups-${index}-method" name="groups-${index}-method" required>
-                  <option value="PREV_MAX">PREV_MAX</option>
-                  <option value="BOXCOX">BOXCOX</option>
-                </select>
-                <label class="form-label
-          mt-2" for="groups-${index}-threshold">Threshold</label>
-                  <input class="form-control" id="groups-${index}-threshold" name="groups-${index}-threshold" type="number" step="0.01" required>
-                  `;
-                  groupsDiv.appendChild(newGroup);
-              });
-                    // Remove group button handler for dynamically added groups
-            document.addEventListener('click', function(e) {
-              if (e.target && e.target.classList.contains('remove-group')) {
-                const groupDiv = e.target.closest('.group-entry');
-                if (groupDiv) {
-                  groupDiv.remove();
-                }
-              }
-            });
-        </script>
+
+        {% include "partials/min_max_group_handlers.html" %}
 
         {% set groups = stage.groups if stage.groups else [{}] %}
         {% for i in range(groups|length) %}
         {% set group = groups[i] %}
-        <div class="mb-3 border rounded p-2 mb-2">
+        <div class="mb-3 border rounded p-2 mb-2 group-entry">
             <label class="form-label" for="groups-{{i}}-limitMedian">Limit Median</label>
             <input class="form-control" id="groups-{{i}}-limitMedian" name="groups-{{i}}-limitMedian" type="number"
                    value="{{ group.limitMedian or '' }}" required>
+
             <label class="form-label mt-2" for="groups-{{i}}-method">Method</label>
-<select class="form-select" id="groups-{{i}}-method" name="groups-{{i}}-method" required>
-  {% for method in minmax_methods %}
-    <option value="{{ method }}" {% if group.method == method %}selected{% endif %}>
-      {{ minmax_labels[method] }}
-    </option>
-  {% endfor %}
-</select>
+            <select class="form-select" id="groups-{{i}}-method" name="groups-{{i}}-method" required>
+                {% for method in minmax_methods %}
+                <option value="{{ method }}" {% if group.method== method %}selected{% endif %}>
+                    {{ minmax_labels[method] }}
+                </option>
+                {% endfor %}
+            </select>
 
             <label class="form-label mt-2" for="groups-{{i}}-threshold">Threshold</label>
             <input class="form-control" id="groups-{{i}}-threshold" name="groups-{{i}}-threshold" type="number"
                    step="0.01"
                    value="{{ group.threshold or '' }}" required>
+
+            <div class="constant-fields mt-2 {% if group.method != 'CONSTANT' %}d-none{% endif %}">
+                <label class="form-label mt-2" for="groups-{{i}}-constantMin">Constant Minimum</label>
+                <input class="form-control" id="groups-{{i}}-constantMin" name="groups-{{i}}-constantMin" type="number"
+                       step="1" min="0" value="{{ group.constantMin if group.constantMin is not none else '' }}">
+                <label class="form-label mt-2" for="groups-{{i}}-constantMax">Constant Maximum</label>
+                <input class="form-control" id="groups-{{i}}-constantMax" name="groups-{{i}}-constantMax" type="number"
+                       step="1" min="0" value="{{ group.constantMax if group.constantMax is not none else '' }}">
+            </div>
+
             <button type="button" class="btn btn-danger btn-sm mt-2 remove-group">Delete Group</button>
         </div>
         {% endfor %}
     </div>
+
     <div class="mb-3">
         <input class="form-check-input" type="checkbox" id="active" name="active" {% if stage.active %}checked{% endif
                %}>
         <label class="form-check-label" for="active">Active</label>
     </div>
-
 
     <button class="btn btn-primary" type="submit">{{ 'Update' if edit else 'Create' }} Stage</button>
     <a class="btn btn-secondary" href="{{ url_for('ui.min_max_index') }}">Cancel</a>

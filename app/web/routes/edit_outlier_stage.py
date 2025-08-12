@@ -7,32 +7,40 @@ from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
 from app.core.uid_utils import UidUtils
 from app.web.routes.api import api_bp
-from app.web.utils.config_helpers import load_config, save_config
+from app.web.utils.config_helpers import  save_config
 
 
 def default_outlier_stage():
     return {
         'name': '',
         'type': 'outlier',
-        'level': 1,
-        'duration': '12 months',
+
+
         'params': {
+            'level': 1,
+            'duration': '12 months',
             'dataset': '',
             'algorithm': 'MOD_Z_SCORE',
             'threshold': 3,
-            'destination_data_element': ''
+            'destination_data_element': '',
+            'start_date_offset': '',
+            'end_date_offset': ''
         }
     }
 
 def resolve_name(fetch_func, uid):
-        if not uid:
-            return ''
-        try:
-            result = fetch_func(uid)
-            return result.get('name') or uid
-        except requests.exceptions.RequestException:
-            flash(f"Warning: Failed to fetch name for {uid}", 'warning')
+    if not uid:
+        return ''
+    try:
+        result = fetch_func(uid)
+        if result is None:
+            flash(f"Warning: No result found for UID {uid}", 'warning')
             return uid
+        return result.get('name') or uid
+    except requests.exceptions.RequestException:
+        flash(f"Warning: Failed to fetch name for {uid}", 'warning')
+        return uid
+
 
 
 @api_bp.route('/outlier-stage', methods=['GET', 'POST'], endpoint='new_outlier_stage')
@@ -40,7 +48,7 @@ def resolve_name(fetch_func, uid):
 def outlier_stage_view(stage_index=None):
     config_path = current_app.config['CONFIG_PATH']
     try:
-        config = load_config(config_path)
+        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
     except ValueError as e:
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
@@ -73,12 +81,14 @@ def outlier_stage_view(stage_index=None):
     # Handle form submission
     if request.method == 'POST':
         stage['name'] = request.form['stage_name']
-        stage['level'] = int(request.form['orgunit_level'])
-        stage['duration'] = request.form['duration']
+        stage['params']['level'] = int(request.form['orgunit_level'])
+        stage['params']['duration'] = request.form['duration']
         stage['params']['dataset'] = request.form['dataset']
         stage['params']['algorithm'] = request.form['algorithm']
         stage['params']['threshold'] = int(request.form['threshold'])
         stage['params']['destination_data_element'] = request.form['destination_data_element']
+        stage['params']['start_date_offset'] = request.form.get('start_date_offset', None)
+        stage['params']['end_date_offset'] = request.form.get('end_date_offset', None)
 
         # Handle UID generation/validation
         if not is_edit or not stage.get('uid'):
@@ -93,7 +103,7 @@ def outlier_stage_view(stage_index=None):
             config.setdefault('analyzer_stages', []).append(stage)
 
         try:
-            ConfigManager.validate_structure(config)
+            ConfigManager(config_path = None, config=config, validate_structure=True, validate_runtime=False)
             save_config(config_path, config)
             flash(f"{'Updated' if is_edit else 'New'} outlier stage saved.", 'success')
             return redirect(url_for('ui.index'))

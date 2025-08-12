@@ -1,10 +1,12 @@
+import asyncio
 import logging
 import requests
 from flask import current_app, request, render_template, redirect, url_for, flash
 from copy import deepcopy
 
+from app.analyzers.integrity_analyzer import IntegrityCheckAnalyzer
 from app.core.api_utils import Dhis2ApiUtils
-from app.web.utils.config_helpers import load_config, save_config
+from app.web.utils.config_helpers import save_config
 from app.web.routes.api import api_bp
 from app.core.config_loader import ConfigManager
 from app.core.uid_utils import UidUtils
@@ -26,8 +28,7 @@ def default_integrity_stage():
         }
     }
 
-
-def validate_stage(stage):
+def validate_integrity_stage(stage):
     """Validate integrity stage configuration"""
     if not stage.get('name'):
         raise ValueError("Stage name cannot be empty")
@@ -37,9 +38,6 @@ def validate_stage(stage):
         raise ValueError("Monitoring group must be specified")
     if not stage.get('params', {}).get('period_type'):
         raise ValueError("Period type must be specified")
-    if not stage.get('params', {}).get('dataset'):
-        raise ValueError("Dataset must be specified")
-
 
 def get_data_element_group_name(api_utils, deg_uid):
     """Fetch data element group name, return UID if fetch fails"""
@@ -52,6 +50,8 @@ def get_data_element_group_name(api_utils, deg_uid):
         return deg_uid
 
 
+
+
 @api_bp.route('/integrity-stage', methods=['GET', 'POST'], endpoint='new_integrity_stage')
 @api_bp.route('/integrity-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_integrity_stage')
 def integrity_stage_view(stage_index=None):
@@ -60,7 +60,7 @@ def integrity_stage_view(stage_index=None):
     is_edit = stage_index is not None
 
     try:
-        config = load_config(config_path)
+        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
     except ValueError as e:
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
@@ -97,8 +97,8 @@ def integrity_stage_view(stage_index=None):
     if request.method == 'POST':
         # Update stage from form data
         stage['name'] = request.form['stage_name']
-        stage['level'] = int(request.form['orgunit_level'])
-        stage['duration'] = request.form['duration']
+        stage['params']['level'] = int(request.form['orgunit_level'])
+        stage['params']['duration'] = request.form['duration']
         stage['params']['monitoring_group'] = request.form['monitoring_group']
         stage['params']['period_type'] = request.form['period_type']
 
@@ -122,7 +122,7 @@ def integrity_stage_view(stage_index=None):
 
         try:
             # Validate the stage
-            validate_stage(stage)
+            validate_integrity_stage(stage)
 
             # Add new stage to config if creating
             if not is_edit:
@@ -154,3 +154,61 @@ def integrity_stage_view(stage_index=None):
         edit=is_edit,
         deg_name=deg_name
     )
+
+
+@api_bp.route('/integrity-stage/create-missing-des', methods=['GET', 'POST'], endpoint='create_missing_des')
+def create_missing_data_elements():
+    """View and create missing data elements for integrity checks"""
+    config_path = current_app.config['CONFIG_PATH']
+
+    try:
+        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('ui.index'))
+
+    # Initialize API utils
+    d2_token = config['server'].get('d2_token')
+    base_url = config['server']['base_url']
+    api_utils = Dhis2ApiUtils(
+        base_url=base_url,
+        d2_token=d2_token
+    )
+
+    request_headers = {
+        'Authorization': f'ApiToken {d2_token}',
+        'Content-Type': 'application/json'
+    }
+
+
+    integrity_analyzer = IntegrityCheckAnalyzer(config,
+                                               base_url=base_url,
+                                                headers=request_headers)
+
+    missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
+
+    if request.method == 'POST':
+        created = []
+        failed = []
+        for check in missing_checks:
+            try:
+                de_payload = {
+                    "name": f"[MI] {check['displayName']}",
+                    "shortName": f"MI {check['code'][:40]}",  # DHIS2 shortName max 50 chars
+                    "code": f"MI_{check['code']}",
+                    "valueType": "TEXT",
+                    "domainType": "AGGREGATE",
+                    "aggregationType": "NONE",
+                    "zeroIsSignificant": True,
+                }
+                # Create the data element
+                response = api_utils.create_data_element(de_payload)
+            except Exception as e:
+                failed.append((check['code'], str(e)))
+
+        flash(f"Created {len(created)} data elements.", 'success')
+        if failed:
+            flash(f"Failed to create: {failed}", 'danger')
+        return redirect(url_for('api.create_missing_des'))
+
+    return render_template('create_missing_des.html', missing_checks=missing_checks)

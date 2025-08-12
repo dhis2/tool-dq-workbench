@@ -2,15 +2,18 @@ import asyncio
 
 from flask import Blueprint, current_app, render_template, flash, jsonify, redirect, url_for
 
+from app.core.config_loader import ConfigManager
 from app.runner import DataQualityMonitor
-from app.web.utils.config_helpers import load_config
-
 from app.web.routes.api import api_bp
+
 
 @api_bp.route('/run', methods=['POST'], endpoint='run')
 def run_now():
     try:
-        config = load_config(current_app.config['CONFIG_PATH'])
+        config = ConfigManager(current_app.config['CONFIG_PATH'],
+                               config=None,
+                               validate_structure=True,
+                               validate_runtime=False).config
 
         # Only keep active stages
         active_stages = [
