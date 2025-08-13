@@ -4,30 +4,30 @@ from app.core.api_utils import Dhis2ApiUtils
 import re
 from app.core.time_unit import TimeUnit
 import logging
-
+from typing import Any, Dict
 from build.lib.app.core.period_utils import Dhis2PeriodUtils
 
 
 class ConfigManager:
     def __init__(self, config_path, config, validate_structure=True, validate_runtime=True):
-
-        self.server = None
         if config_path:
             with open(config_path, 'r') as stream:
                 config = yaml.safe_load(stream)
-        if not isinstance(config, dict):
-            raise ValueError("Config must be a dictionary after loading.")
 
-        if config is None:
-            raise ValueError("Either config_path or config dict must be provided.")
-        self.config = config
+        if config is None or not isinstance(config, dict):
+            raise ValueError("Config must be provided and be a dictionary after loading.")
 
+        self.config: Dict[str, Any] = config
+
+        server = self.config.get('server')
+        if not isinstance(server, dict):
+            raise ValueError("Missing or invalid 'server' section in config.")
+        self.server: Dict[str, Any] = server
 
         if validate_structure:
-            self.validate_structure(config)
-
+            self.validate_structure(self.config)
         if validate_runtime:
-            self._validate_runtime(config)
+            self._validate_runtime(self.config)
 
     @classmethod
     def _validate_runtime(cls, config):
