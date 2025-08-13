@@ -1,8 +1,8 @@
-import asyncio
 import logging
 import requests
-from flask import current_app, request, render_template, redirect, url_for, flash
+from typing import Any, Dict, Mapping, Optional, List
 from copy import deepcopy
+from flask import current_app, request, render_template, redirect, url_for, flash
 
 from app.analyzers.integrity_analyzer import IntegrityCheckAnalyzer
 from app.core.api_utils import Dhis2ApiUtils
@@ -12,7 +12,9 @@ from app.core.config_loader import ConfigManager
 from app.core.uid_utils import UidUtils
 
 
-def default_integrity_stage():
+# -------------------- defaults & validation --------------------
+
+def default_integrity_stage() -> Dict[str, Any]:
     """Utility to generate a blank integrity stage"""
     uid = UidUtils.generate_uid()
     return {
@@ -28,109 +30,159 @@ def default_integrity_stage():
         }
     }
 
-def validate_integrity_stage(stage):
+def validate_integrity_stage(stage: Dict[str, Any]) -> None:
     """Validate integrity stage configuration"""
     if not stage.get('name'):
         raise ValueError("Stage name cannot be empty")
     if not stage.get('uid'):
         raise ValueError("Stage UID cannot be empty")
-    if not stage.get('params', {}).get('monitoring_group'):
+    params = stage.get('params', {})
+    if not params.get('monitoring_group'):
         raise ValueError("Monitoring group must be specified")
-    if not stage.get('params', {}).get('period_type'):
+    if not params.get('period_type'):
         raise ValueError("Period type must be specified")
 
-def get_data_element_group_name(api_utils, deg_uid):
+
+# --------------------Helpers--------------------
+
+def _load_config(path: str) -> Dict[str, Any]:
+    cm = ConfigManager(config_path=path, config=None, validate_structure=True, validate_runtime=False)
+    return cm.config
+
+def _validate_and_save_config(path: str, config: Dict[str, Any]) -> None:
+    # Validate structure before persisting
+    ConfigManager(config_path=None, config=config, validate_structure=True, validate_runtime=False)
+    save_config(path, config)
+
+def _api_utils_from_config(config: Dict[str, Any]) -> Dhis2ApiUtils:
+    server = config.get('server', {})
+    return Dhis2ApiUtils(
+        base_url=server['base_url'],
+        d2_token=server['d2_token'],
+    )
+
+def _stage_for_edit(config: Dict[str, Any], idx: int) -> Dict[str, Any]:
+    stages: List[Dict[str, Any]] = config.get('analyzer_stages') or []
+    if not (0 <= idx < len(stages)):
+        raise ValueError("Stage not found.")
+    stage = stages[idx]
+    if stage.get('type') != 'integrity_checks':
+        raise ValueError('Only the integrity check stage can be edited here.')
+    return stage
+
+def _ensure_analyzer_stages_list(config: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if 'analyzer_stages' not in config or not isinstance(config['analyzer_stages'], list):
+        config['analyzer_stages'] = []
+    return config['analyzer_stages']
+
+def _apply_form_to_integrity_stage(stage: Dict[str, Any], form: Mapping[str, str], is_edit: bool) -> None:
+    def as_int(key: str, default: Optional[int] = None) -> Optional[int]:
+        v = form.get(key)
+        try:
+            return int(v) if v not in (None, "") else default
+        except (TypeError, ValueError):
+            return default
+
+    def as_str(key: str, default: Optional[str] = None) -> Optional[str]:
+        v = form.get(key, default)
+        return v if v not in ("",) else default
+
+    params = stage.setdefault('params', {})
+
+    stage['name'] = as_str('stage_name', stage.get('name'))
+    params['level'] = as_int('orgunit_level', params.get('level'))
+    params['duration'] = as_str('duration', params.get('duration'))
+    params['monitoring_group'] = as_str('monitoring_group', params.get('monitoring_group'))
+    params['period_type'] = as_str('period_type', params.get('period_type'))
+
+    # UID handling
+    if not is_edit and not stage.get('uid'):
+        stage['uid'] = UidUtils.generate_uid()
+    elif is_edit and stage.get('uid'):
+        stage['uid'] = stage['uid'].strip()
+
+    # Active flag (edit-only)
+    if is_edit:
+        logging.debug("Stage active status: %s", form.get('active', 'off'))
+        stage['active'] = (form.get('active', 'off') == 'on')
+
+def get_data_element_group_name(api_utils: Dhis2ApiUtils, deg_uid: str) -> str:
     """Fetch data element group name, return UID if fetch fails"""
+    if not deg_uid:
+        return ''
     try:
-        deg_name = api_utils.fetch_data_element_group_by_id(deg_uid)
-        logging.debug("Fetched data element group name: %s", deg_name)
-        return deg_name.get('name', deg_uid) if deg_name else deg_uid
+        deg = api_utils.fetch_data_element_group_by_id(deg_uid)
+        name = (deg or {}).get('name') or deg_uid
+        logging.debug("Fetched data element group name: %s", name)
+        return name
     except requests.exceptions.RequestException:
         flash(f"Warning: Failed to fetch data element group name for {deg_uid}", 'warning')
         return deg_uid
 
+def _build_de_payload(check: Dict[str, Any]) -> Dict[str, Any]:
+    code = str(check.get('code', '') or '')
+    display_name = str(check.get('displayName', '') or '')
+    return {
+        "name": f"[MI] {display_name}",
+        "shortName": f"MI {code[:40]}",  # DHIS2 shortName max 50 chars
+        "code": f"MI_{code}",
+        "valueType": "TEXT",
+        "domainType": "AGGREGATE",
+        "aggregationType": "NONE",
+        "zeroIsSignificant": True,
+    }
 
 
+# -------------------- controllers --------------------
 
 @api_bp.route('/integrity-stage', methods=['GET', 'POST'], endpoint='new_integrity_stage')
 @api_bp.route('/integrity-stage/<int:stage_index>', methods=['GET', 'POST'], endpoint='edit_integrity_stage')
-def integrity_stage_view(stage_index=None):
-    """Unified view for creating new or editing existing integrity stages"""
+def integrity_stage_view(stage_index: Optional[int] = None):
     config_path = current_app.config['CONFIG_PATH']
-    is_edit = stage_index is not None
 
+    # Load config
     try:
-        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
+        config = _load_config(config_path)
     except ValueError as e:
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
 
-    # Initialize API utils
-    api_utils = Dhis2ApiUtils(
-        base_url=config['server']['base_url'],
-        d2_token=config['server']['d2_token']
-    )
+    is_edit = stage_index is not None
 
-    # Get or create stage
-    if is_edit:
-        # Editing existing stage
-        if stage_index >= len(config.get('analyzer_stages', [])):
-            flash('Stage not found.', 'danger')
-            return redirect(url_for('ui.index'))
+    # Get stage (existing or default)
+    try:
+        stage = _stage_for_edit(config, int(stage_index)) if is_edit else default_integrity_stage()
+    except ValueError as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('ui.index'))
 
-        stage = config['analyzer_stages'][stage_index]
+    # API utils (only for rendering names / feedback)
+    api_utils = _api_utils_from_config(config)
 
-        if stage.get('type') != 'integrity_checks':
-            flash('Only the integrity check stage can be edited here.', 'danger')
-            return redirect(url_for('ui.index'))
-    else:
-        # Creating new stage
-        stage = default_integrity_stage()
-        if 'analyzer_stages' not in config:
-            config['analyzer_stages'] = []
-
-    # Get data element group name for display
-    deg_uid = stage['params'].get('monitoring_group', '')
+    # Resolve DE group name for display
+    deg_uid = stage.get('params', {}).get('monitoring_group', '')
     deg_name = get_data_element_group_name(api_utils, deg_uid) if deg_uid else ''
 
-
     if request.method == 'POST':
-        # Update stage from form data
-        stage['name'] = request.form['stage_name']
-        stage['params']['level'] = int(request.form['orgunit_level'])
-        stage['params']['duration'] = request.form['duration']
-        stage['params']['monitoring_group'] = request.form['monitoring_group']
-        stage['params']['period_type'] = request.form['period_type']
+        _apply_form_to_integrity_stage(stage, request.form, is_edit)
 
-        # Handle UID generation/validation
-        if not is_edit and not stage.get('uid'):
-            stage['uid'] = UidUtils.generate_uid()
-        elif is_edit:
-            stage['uid'] = stage['uid'].strip()
-
-        # Handle active status (only relevant for editing)
-        if is_edit:
-            logging.debug("Stage active status: %s", request.form.get('active', 'off'))
-            stage['active'] = request.form.get('active', 'off') == 'on'
-
-        # Get updated data element group name for validation feedback
-        new_deg_uid = request.form['monitoring_group']
-        if new_deg_uid != deg_uid:
+        # Update display name if UID changed (useful for feedback)
+        new_deg_uid = request.form.get('monitoring_group', '')
+        if new_deg_uid and new_deg_uid != deg_uid:
             deg_name = get_data_element_group_name(api_utils, new_deg_uid)
             if not is_edit:
-                stage['params']['dataelement_group_name'] = deg_name
+                stage.setdefault('params', {})['dataelement_group_name'] = deg_name
 
         try:
-            # Validate the stage
+            # Validate stage
             validate_integrity_stage(stage)
 
-            # Add new stage to config if creating
+            # Append to config if creating
             if not is_edit:
-                config['analyzer_stages'].append(stage)
+                _ensure_analyzer_stages_list(config).append(stage)
 
-            # Validate and save config
-            ConfigManager.validate_structure(config)
-            save_config(config_path, config)
+            # Persist
+            _validate_and_save_config(config_path, config)
 
             action = "Updated" if is_edit else "Added"
             flash(f"{action} integrity stage: {stage['name']}", 'success')
@@ -138,16 +190,9 @@ def integrity_stage_view(stage_index=None):
 
         except ValueError as e:
             flash(f"Error saving stage: {e}", 'danger')
-            # For new stages that fail validation, render with error but don't save
-            if not is_edit:
-                return render_template(
-                    "stage_form_integrity_checks.html",
-                    stage=stage,
-                    edit=False,
-                    deg_name=deg_name
-                )
+            # fall through to re-render with errors
 
-    # Render form (GET request or POST with validation errors)
+    # Render form (GET or POST with validation errors)
     return render_template(
         "stage_form_integrity_checks.html",
         stage=deepcopy(stage) if is_edit else stage,
@@ -162,53 +207,41 @@ def create_missing_data_elements():
     config_path = current_app.config['CONFIG_PATH']
 
     try:
-        config = ConfigManager(config_path, config=None, validate_structure=True, validate_runtime=False).config
+        config = _load_config(config_path)
     except ValueError as e:
         flash(str(e), 'danger')
         return redirect(url_for('ui.index'))
 
-    # Initialize API utils
+    api_utils = _api_utils_from_config(config)
+
+    # Integrity analyzer setup
     d2_token = config['server'].get('d2_token')
     base_url = config['server']['base_url']
-    api_utils = Dhis2ApiUtils(
-        base_url=base_url,
-        d2_token=d2_token
-    )
-
     request_headers = {
         'Authorization': f'ApiToken {d2_token}',
         'Content-Type': 'application/json'
     }
-
-
-    integrity_analyzer = IntegrityCheckAnalyzer(config,
-                                               base_url=base_url,
-                                                headers=request_headers)
+    integrity_analyzer = IntegrityCheckAnalyzer(config, base_url=base_url, headers=request_headers)
 
     missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
 
     if request.method == 'POST':
-        created = []
-        failed = []
+        created: List[str] = []
+        failed: List[str] = []
+
         for check in missing_checks:
             try:
-                de_payload = {
-                    "name": f"[MI] {check['displayName']}",
-                    "shortName": f"MI {check['code'][:40]}",  # DHIS2 shortName max 50 chars
-                    "code": f"MI_{check['code']}",
-                    "valueType": "TEXT",
-                    "domainType": "AGGREGATE",
-                    "aggregationType": "NONE",
-                    "zeroIsSignificant": True,
-                }
-                # Create the data element
-                response = api_utils.create_data_element(de_payload)
+                payload = _build_de_payload(check)
+                api_utils.post_metadata(payload)
+                created.append(str(check.get('code', '')))
             except Exception as e:
-                failed.append((check['code'], str(e)))
+                failed.append(f"{check.get('code','UNKNOWN')}: {e}")
 
-        flash(f"Created {len(created)} data elements.", 'success')
+        if created:
+            flash(f"Created {len(created)} data elements.", 'success')
         if failed:
-            flash(f"Failed to create: {failed}", 'danger')
+            flash(f"Failed to create: {', '.join(failed)}", 'danger')
+
         return redirect(url_for('api.create_missing_des'))
 
     return render_template('create_missing_des.html', missing_checks=missing_checks)
