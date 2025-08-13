@@ -13,8 +13,8 @@ def api_data_elements():
 
     config = ConfigManager(current_app.config['CONFIG_PATH'])
     utils = Dhis2ApiUtils(
-        base_url=config['server']['base_url'],
-        d2_token=config['server']['d2_token']
+        base_url=config.server.get("base_url"),
+        d2_token=config.server.get("d2_token")
     )
     query = request.args.get('q', '').strip()
 

@@ -9,10 +9,14 @@ from build.lib.app.core.period_utils import Dhis2PeriodUtils
 
 
 class ConfigManager:
-    def __init__(self, config_path,config, validate_structure=True, validate_runtime=True):
+    def __init__(self, config_path, config, validate_structure=True, validate_runtime=True):
+
+        self.server = None
         if config_path:
             with open(config_path, 'r') as stream:
                 config = yaml.safe_load(stream)
+        if not isinstance(config, dict):
+            raise ValueError("Config must be a dictionary after loading.")
 
         if config is None:
             raise ValueError("Either config_path or config dict must be provided.")
