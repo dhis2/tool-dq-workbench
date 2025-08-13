@@ -1,9 +1,10 @@
 # minmax/statistics.py
 
 import numpy as np
-from scipy.stats import median_abs_deviation, boxcox
-from scipy.special import inv_boxcox
+from scipy.stats import median_abs_deviation
 import math
+from scipy.stats import boxcox
+from scipy.special import inv_boxcox
 from app.minmax.min_max_method import MinMaxMethod
 
 def check_no_variance(values):
@@ -41,10 +42,14 @@ def values_iqr(values, threshold):
     val_max = q3 + threshold * iqr
     return val_max, val_min
 
-def values_boxcox(values, threshold):
+
+
+def values_boxcox(values, threshold, eps=1e-9):
     values = np.asarray(values, dtype=float)
 
     # Basic sanity: finite & strictly positive
+    if values.size == 0:
+        return np.nan, np.nan, "BOXCOX failed (empty input)"
     if not np.all(np.isfinite(values)) or np.any(values <= 0):
         return np.nan, np.nan, "BOXCOX failed (nonpositive or nonfinite values)"
 
@@ -54,24 +59,27 @@ def values_boxcox(values, threshold):
         return np.nan, np.nan, f"BOXCOX failed ({type(e).__name__})"
 
     mean = float(np.mean(transformed))
-    std = float(np.std(transformed))
-    if not np.isfinite(std) or std == 0.0:
-        return np.nan, np.nan, "BOXCOX failed (zero/NaN std)"
+    std = float(np.std(transformed, ddof=1)) if transformed.size > 1 else 0.0
+
+    # Scale-aware near-zero std check: atol scaled by data magnitude
+    scale = max(1.0, float(np.max(np.abs(transformed))))
+    tol_std = max(eps * scale, 0.0)
+    if (not np.isfinite(std)) or np.isclose(std, 0.0, rtol=0.0, atol=tol_std):
+        return np.nan, np.nan, f"BOXCOX failed (std≈0 within tol {tol_std:g})"
 
     upper = mean + threshold * std
     lower = mean - threshold * std
 
     # Respect inverse domain: λ*y + 1 > 0
-    eps = 1e-9
-    if lmbda > 0:
-        lower_safe = max(lower, -1.0 / lmbda + eps)  # push lower up if needed
-        upper_safe = upper
-    elif lmbda < 0:
-        upper_safe = min(upper, -1.0 / lmbda - eps)  # pull upper down if needed
-        lower_safe = lower
-    else:
-        # λ == 0 uses log transform; no domain boundary on y
+    # Treat lambdas extremely close to 0 as 0 (log transform)
+    if np.isclose(lmbda, 0.0, rtol=0.0, atol=eps):
         upper_safe, lower_safe = upper, lower
+    elif lmbda > 0:
+        lower_safe = max(lower, -1.0 / lmbda + eps)
+        upper_safe = upper
+    else:  # lmbda < 0
+        upper_safe = min(upper, -1.0 / lmbda - eps)
+        lower_safe = lower
 
     try:
         val_max = float(inv_boxcox(upper_safe, lmbda))
@@ -81,7 +89,8 @@ def values_boxcox(values, threshold):
 
     # sanity fallback
     if (not math.isfinite(val_min) or not math.isfinite(val_max)
-        or val_max <= 0 or val_min <= 0 or val_max == val_min):
+        or val_max <= 0 or val_min <= 0
+        or np.isclose(val_max, val_min, rtol=0.0, atol=max(eps * max(val_max, val_min, 1.0), eps))):
         return np.nan, np.nan, "BOXCOX failed (invalid bounds)"
 
     if sum(v > val_max for v in values) > (len(values) / 2):
@@ -89,7 +98,8 @@ def values_boxcox(values, threshold):
     if sum(v < val_min for v in values) > (len(values) / 2):
         return np.nan, np.nan, "BOXCOX rejected (too many below min)"
 
-    return val_max, val_min, f"BOXCOX (λ={lmbda:.3f})"
+    return val_max, val_min, f"BOXCOX (λ={lmbda:.6g}, tol_std={tol_std:g})"
+
 
 
 # grouping.py
