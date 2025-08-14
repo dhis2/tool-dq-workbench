@@ -52,14 +52,15 @@
 <hr>
 <div><!-- Create missing DEs -->
 <form method="post" action="{{ url_for('api.create_missing_des') }}" class="d-inline ms-2">
-    {% if csrf_token %}
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    {% endif %}
-    <input type="hidden" name="next" value="{{ request.full_path }}">
-    <button type="submit" class="btn btn-outline-primary"
-            onclick="return confirm('Create data elements for any missing integrity checks now?');">
-        Create missing integrity data elements
-    </button>
+  {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+  <!-- return to this page after the POST -->
+  <input type="hidden" name="next" value="{{ request.full_path }}">
+  <!-- tell the server which stage we're editing (if any) -->
+  <input type="hidden" name="stage_index" value="{{ request.view_args.get('stage_index', '') }}">
+  <button type="submit" class="btn btn-outline-primary"
+          onclick="return confirm('Create data elements for any missing integrity checks now?');">
+    Create missing integrity data elements
+  </button>
 </form>
 </div>
 

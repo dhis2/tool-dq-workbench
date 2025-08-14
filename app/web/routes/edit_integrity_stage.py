@@ -200,18 +200,27 @@ def integrity_stage_view(stage_index: Optional[int] = None):
         deg_name=deg_name
     )
 
-
 @api_bp.route('/integrity-stage/create-missing-des', methods=['POST'], endpoint='create_missing_des')
 def create_missing_data_elements():
-    """View and create missing data elements for integrity checks"""
-    next_url = request.form.get('next') or url_for('ui.index')
-    config_path = current_app.config['CONFIG_PATH']
+    """
+    Create any missing data elements for integrity checks.
+    Always return to the page that initiated the action so flashes are visible there.
+    """
+    # Prefer explicit 'next', then referrer, then fall back to edit view, then index
+    stage_idx = request.form.get('stage_index')
+    next_url = (
+        request.form.get('next')
+        or request.referrer
+        or (url_for('api.edit_integrity_stage', stage_index=stage_idx) if stage_idx else None)
+        or url_for('ui.index')
+    )
 
+    config_path = current_app.config['CONFIG_PATH']
     try:
         config = _load_config(config_path)
     except ValueError as e:
         flash(str(e), 'danger')
-        return redirect(url_for('ui.index'))
+        return redirect(next_url)
 
     api_utils = _api_utils_from_config(config)
 
@@ -220,41 +229,51 @@ def create_missing_data_elements():
     base_url = config['server']['base_url']
     request_headers = {
         'Authorization': f'ApiToken {d2_token}',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',  # OK for POSTs below
     }
     integrity_analyzer = IntegrityCheckAnalyzer(config, base_url=base_url, headers=request_headers)
 
-    missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
+    # Find missing checks
+    try:
+        missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
+    except Exception as e:
+        flash(f"Could not retrieve integrity checks: {e}", 'danger')
+        return redirect(next_url)
 
     if not missing_checks:
         flash("No missing data elements found for integrity checks.", 'info')
-        return redirect(url_for('ui.index'))
+        return redirect(next_url)  # ← stay on the same page and show the flash
 
-    missing_des = []
-    for check in missing_checks:
-        missing_de = _build_de_payload(check)
-        missing_des.append(missing_de)
+    # Build payload and create
+    missing_des = [_build_de_payload(check) for check in missing_checks]
 
     try:
         payload = {"dataElements": missing_des}
-        response = api_utils.post_metadata(payload)
-        if response is not None:
-            if response.status_code == 200:
-                created_des = response.json()
-                created_count = created_des.get('response', {}).get('stats', {}).get('created', 0)
-                ignored_count = created_des.get('response', {}).get('stats', {}).get('ignored', 0)
-                flash(f"Created {created_count} new data elements, {ignored_count} ignored for integrity checks.",
-                      'success')
-                logging.info(f"Created {created_count} new data elements, {ignored_count} ignored: {created_des}")
-            elif response.status_code == 409:
-                error_msg = response.json().get('message', 'Conflict occurred while creating data elements.')
+        resp = api_utils.post_metadata(payload)  # if this returns a requests.Response
+        if resp is None:
+            flash("No response received from DHIS2. Please check the logs for details.", 'warning')
+            return redirect(next_url)
+
+        if hasattr(resp, "status_code"):  # Response-like
+            if resp.status_code == 200:
+                body = resp.json()
+                stats = body.get('response', {}).get('stats', {})
+                created_count = stats.get('created', 0)
+                ignored_count = stats.get('ignored', 0)
+                flash(f"Created {created_count} new data elements, {ignored_count} ignored.", 'success')
+            elif resp.status_code == 409:
+                error_msg = resp.json().get('message', 'Conflict occurred while creating data elements.')
                 flash(f"DHIS2 returned a conflict (409): {error_msg}", 'warning')
             else:
-                flash(f"Unexpected response from DHIS2: {response.status_code}", 'warning')
+                flash(f"Unexpected response from DHIS2: {resp.status_code}", 'warning')
         else:
-            flash("No response received from DHIS2. Please check the logs for details.", 'warning')
+            # If post_metadata already returns parsed JSON
+            stats = resp.get('response', {}).get('stats', {}) if isinstance(resp, dict) else {}
+            created_count = stats.get('created', 0)
+            ignored_count = stats.get('ignored', 0)
+            flash(f"Created {created_count} new data elements, {ignored_count} ignored.", 'success')
+
     except requests.exceptions.RequestException as e:
         flash(f"Error creating data elements: {e}", 'danger')
 
     return redirect(next_url)
-
