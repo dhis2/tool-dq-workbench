@@ -13,11 +13,10 @@ class Dhis2ApiUtils:
         self.d2_token = d2_token
         self.request_headers = {
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
             'Accept-Encoding': 'gzip',
+            'Authorization': f'ApiToken {d2_token}'
         }
-
-        if d2_token:
-            self.request_headers['Authorization'] = f'ApiToken {d2_token}'
 
     async def get_system_info(self, session):
         url = f'{self.base_url}/api/system/info.json'
@@ -33,11 +32,10 @@ class Dhis2ApiUtils:
         :return: Response from the API.
         """
         url = f'{self.base_url}/api/metadata'
-        headers = self.request_headers.copy()
-        headers['Content-Type'] = 'application/json'
-        if self.d2_token:
-            headers['Authorization'] = f'ApiToken {self.d2_token}'
-        response = requests.post(url, json=metadata, headers=headers)
+        #Add the 'Content-Type' header if not already set
+        if 'Content-Type' not in self.request_headers:
+            self.request_headers['Content-Type'] = 'application/json'
+        response = requests.post(url, json=metadata, headers=self.request_headers)
         response.raise_for_status()
         return response
 
@@ -228,7 +226,8 @@ class Dhis2ApiUtils:
 
     def get_metadata_integrity_checks(self):
         # GET /api/dataIntegrity
-        url = f'{self.base_url.rstrip("/")}/api/dataIntegrity'
-        response = requests.get(url, headers=self.request_headers)
-        response.raise_for_status()
-        return response.json()
+        url = f"{self.base_url}/api/dataIntegrity"
+        headers = {k: v for k, v in self.request_headers.items() if k.lower() != 'content-type'}
+        resp = requests.get(url, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return resp.json()

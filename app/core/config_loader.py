@@ -4,7 +4,7 @@ from app.core.api_utils import Dhis2ApiUtils
 import re
 from app.core.time_unit import TimeUnit
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 from build.lib.app.core.period_utils import Dhis2PeriodUtils
 
 
@@ -193,67 +193,78 @@ class ConfigManager:
                     f"Start date offset '{start_date_offset}' must be greater than end date offset '{end_date_offset}' in stage '{stage['name']}'"
                 )
 
-    def _validate_datasets_exist(self, datasets):
-        api_utils = Dhis2ApiUtils(
+    def _api_utils(self) -> Dhis2ApiUtils:
+        return Dhis2ApiUtils(
             base_url=self.config['server']['base_url'],
-            d2_token=self.config['server']['d2_token']
+            d2_token=self.config['server']['d2_token'],
         )
+
+    def _validate_datasets_exist(self, datasets: Sequence[str]) -> None:
+        api = self._api_utils()
         for dataset in datasets:
-            if not api_utils.fetch_dataset_by_id(dataset):
+            if not api.fetch_dataset_by_id(dataset):
                 raise ValueError(f"Dataset '{dataset}' does not exist in the system.")
 
-    def _validate_data_element_groups_exist(self, groups):
-        api_utils = Dhis2ApiUtils(
-            base_url=self.config['server']['base_url'],
-            d2_token=self.config['server']['d2_token']
-        )
+    def _validate_data_element_groups_exist(self, groups: Sequence[str]) -> None:
+        api = self._api_utils()
         for group in groups:
-            if not api_utils.fetch_data_element_group_by_id(group):
+            if not api.fetch_data_element_group_by_id(group):
                 raise ValueError(f"Data element group '{group}' does not exist in the system.")
 
-    def _validate_data_elements_exist(self, data_elements):
-        api_utils = Dhis2ApiUtils(
-            base_url=self.config['server']['base_url'],
-            d2_token=self.config['server']['d2_token']
-        )
-        for data_element in data_elements:
-            if not api_utils.fetch_data_element_by_id(data_element):
-                raise ValueError(f"Data element '{data_element}' does not exist in the system.")
+    def _validate_data_elements_exist(self, data_elements: Sequence[str]) -> None:
+        api = self._api_utils()
+        for de in data_elements:
+            if not api.fetch_data_element_by_id(de):
+                raise ValueError(f"Data element '{de}' does not exist in the system.")
 
-    def _validate_org_units_exist(self,    org_units):
-        api_utils = Dhis2ApiUtils(
-            base_url=self.config['server']['base_url'],
-            d2_token=self.config['server']['d2_token']
-        )
-        for org_unit in org_units:
-            if not api_utils.fetch_organisation_unit_by_id(org_unit):
-                raise ValueError(f"Organisation unit '{org_unit}' does not exist in the system.")
+    def _validate_org_units_exist(self, org_units: Sequence[str]) -> None:
+        api = self._api_utils()
+        for ou in org_units:
+            if not api.fetch_organisation_unit_by_id(ou):
+                raise ValueError(f"Organisation unit '{ou}' does not exist in the system.")
+
+    def _validate_min_max_stages(self, stage):
+        """Validate a min_max stage dict; raises ValueError on problems."""
+        name = stage.get('name', '<unnamed>')
+
+        # Optional: normalize legacy singular 'dataset' -> 'datasets' list
+        if 'datasets' not in stage and 'dataset' in stage:
+            ds = stage.get('dataset')
+            stage['datasets'] = [ds] if isinstance(ds, str) else ds
+
+        # Required keys (now includes 'datasets')
+        required = [
+            'name', 'org_units', 'previous_periods',
+            'duration', 'completeness_threshold', 'groups', 'datasets'
+        ]
+        missing = [k for k in required if k not in stage]
+        if missing:
+            raise ValueError(f"Missing {', '.join(repr(k) for k in missing)} in min_max_stage '{name}'")
+
+        # datasets: required non-empty list + existence check
+        datasets = stage.get('datasets')
+        if not isinstance(datasets, list) or not datasets:
+            raise ValueError(f"'datasets' must be a non-empty list in min_max_stage '{name}'")
+        self._validate_datasets_exist(datasets)
+
+        # Optional list fields: if present, must be non-empty lists and must exist
+        optional_lists = {
+            'data_element_groups': self._validate_data_element_groups_exist,
+            'data_elements': self._validate_data_elements_exist,
+        }
+        for key, validator in optional_lists.items():
+            vals = stage.get(key)
+            if not isinstance(vals, list):
+                raise ValueError(f"'{key}' must be a list in min_max_stage '{name}'")
+            if not vals:
+                continue
+            validator(vals)
+
+        # Org units + duration checks
+        org_units = stage.get('org_units')
+        if org_units is None:
+            raise ValueError(f"Organisation units must be specified in min_max_stage '{name}'")
+        self._validate_org_units_exist(org_units)
+        self._is_valid_duration(stage.get('duration'), name)
 
 
-    def _validate_min_max_stages(self,stage):
-        required_keys = ['name', 'org_units', 'previous_periods', 'duration','completeness_threshold','groups']
-        for key in required_keys:
-            if key not in stage:
-               raise ValueError(f"Missing '{key}' in min_max_stage '{stage.get('name', '<unnamed>')}'")
-        if stage.get('datasets'):
-            #Must contain at least one dataset
-            if not isinstance(stage['datasets'], list) or not stage['datasets']:
-                raise ValueError(f"'datasets' must be a non-empty list in min_max_stage '{stage.get('name', '<unnamed>')}'")
-            self._validate_datasets_exist(stage['datasets'])
-        if stage.get('data_element_groups'):
-            #Must contain at least one data element group
-            if not isinstance(stage['data_element_groups'], list) or not stage['data_element_groups']:
-                raise ValueError(f"'data_element_groups' must be a non-empty list in min_max_stage '{stage.get('name', '<unnamed>')}'")
-            self._validate_data_element_groups_exist(stage['data_element_groups'])
-        if stage.get('data_elements'):
-            #Must contain at least one data element
-            if not isinstance(stage['data_elements'], list) or not stage['data_elements']:
-                raise ValueError(f"'data_elements' must be a non-empty list in min_max_stage '{stage.get('name', '<unnamed>')}'")
-            self._validate_data_elements_exist(stage['data_elements'])
-        #We need at least one of datasets, data_element_groups or data_elements
-        if not (stage.get('datasets') or stage.get('data_element_groups') or stage.get('data_elements')):
-            raise ValueError(f"At least one of 'datasets', 'data_element_groups' or 'data_elements' must be specified in min_max_stage '{stage.get('name', '<unnamed>')}'")
-        if stage.get('org_units') is None:
-            raise ValueError(f"Organisation units must be specified in min_max_stage '{stage.get('name', '<unnamed>')}'")
-        self._validate_org_units_exist(stage.get('org_units', []))
-        self._is_valid_duration(stage.get('duration', '12 months'), stage.get('name', '<unnamed>'))

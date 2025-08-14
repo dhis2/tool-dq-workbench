@@ -14,7 +14,7 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
         super().__init__(config, base_url, headers)
 
         #Define a period utils instance for this class
-        self.api_utils = Dhis2ApiUtils(base_url, headers['Authorization'])
+        self.api_utils = Dhis2ApiUtils(base_url, d2_token=self.d2_token)
         self.period_utils = Dhis2PeriodUtils()
 
     async def run_stage(self, stage, session, semaphore):
@@ -177,12 +177,12 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
 
     def get_integrity_checks_no_data_elements(self):
         checks = self.api_utils.get_metadata_integrity_checks()
-        #Exclude any slow or programmatic checks
-        checks = [check for check in checks if not check["isSlow"] and not check["isProgrammatic"]]
+        #Exclude any slow checks
+        checks = [check for check in checks if not check["isSlow"]]
         des = self._fetch_existing_integrity_des()
         #Remove the MI_ prefix from each code
-        for de in des["dataElements"]:
-            this_code = de["dataElement"]["code"][3:]
+        for de in des:
+            this_code = de["code"][3:]
             for check in checks:
                 if check["code"] == this_code:
                     checks.remove(check)

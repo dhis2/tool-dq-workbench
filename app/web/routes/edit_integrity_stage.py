@@ -119,14 +119,14 @@ def get_data_element_group_name(api_utils: Dhis2ApiUtils, deg_uid: str) -> str:
         flash(f"Warning: Failed to fetch data element group name for {deg_uid}", 'warning')
         return deg_uid
 
-def _build_de_payload(check: Dict[str, Any]) -> Dict[str, Any]:
+def _build_de_payload(check):
     code = str(check.get('code', '') or '')
     display_name = str(check.get('displayName', '') or '')
     return {
         "name": f"[MI] {display_name}",
         "shortName": f"MI {code[:40]}",  # DHIS2 shortName max 50 chars
         "code": f"MI_{code}",
-        "valueType": "TEXT",
+        "valueType": "INTEGER_ZERO_OR_POSITIVE",
         "domainType": "AGGREGATE",
         "aggregationType": "NONE",
         "zeroIsSignificant": True,
@@ -201,9 +201,10 @@ def integrity_stage_view(stage_index: Optional[int] = None):
     )
 
 
-@api_bp.route('/integrity-stage/create-missing-des', methods=['GET', 'POST'], endpoint='create_missing_des')
+@api_bp.route('/integrity-stage/create-missing-des', methods=['POST'], endpoint='create_missing_des')
 def create_missing_data_elements():
     """View and create missing data elements for integrity checks"""
+    next_url = request.form.get('next') or url_for('ui.index')
     config_path = current_app.config['CONFIG_PATH']
 
     try:
@@ -225,23 +226,35 @@ def create_missing_data_elements():
 
     missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
 
-    if request.method == 'POST':
-        created: List[str] = []
-        failed: List[str] = []
+    if not missing_checks:
+        flash("No missing data elements found for integrity checks.", 'info')
+        return redirect(url_for('ui.index'))
 
-        for check in missing_checks:
-            try:
-                payload = _build_de_payload(check)
-                api_utils.post_metadata(payload)
-                created.append(str(check.get('code', '')))
-            except Exception as e:
-                failed.append(f"{check.get('code','UNKNOWN')}: {e}")
+    missing_des = []
+    for check in missing_checks:
+        missing_de = _build_de_payload(check)
+        missing_des.append(missing_de)
 
-        if created:
-            flash(f"Created {len(created)} data elements.", 'success')
-        if failed:
-            flash(f"Failed to create: {', '.join(failed)}", 'danger')
+    try:
+        payload = {"dataElements": missing_des}
+        response = api_utils.post_metadata(payload)
+        if response is not None:
+            if response.status_code == 200:
+                created_des = response.json()
+                created_count = created_des.get('response', {}).get('stats', {}).get('created', 0)
+                ignored_count = created_des.get('response', {}).get('stats', {}).get('ignored', 0)
+                flash(f"Created {created_count} new data elements, {ignored_count} ignored for integrity checks.",
+                      'success')
+                logging.info(f"Created {created_count} new data elements, {ignored_count} ignored: {created_des}")
+            elif response.status_code == 409:
+                error_msg = response.json().get('message', 'Conflict occurred while creating data elements.')
+                flash(f"DHIS2 returned a conflict (409): {error_msg}", 'warning')
+            else:
+                flash(f"Unexpected response from DHIS2: {response.status_code}", 'warning')
+        else:
+            flash("No response received from DHIS2. Please check the logs for details.", 'warning')
+    except requests.exceptions.RequestException as e:
+        flash(f"Error creating data elements: {e}", 'danger')
 
-        return redirect(url_for('api.create_missing_des'))
+    return redirect(next_url)
 
-    return render_template('create_missing_des.html', missing_checks=missing_checks)
