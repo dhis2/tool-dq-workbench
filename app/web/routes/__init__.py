@@ -6,6 +6,7 @@ from .ui_blueprint import ui_bp
 from . import (
     index,
     index_minmax,
+    minmax_analysis,
     run,
     run_stage,
     edit_server,

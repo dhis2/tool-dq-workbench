@@ -1,6 +1,6 @@
 Integrity stages
 // // ===================================
-// Integrity stages can be used to the number of metadata integrity violations for each
+// Integrity stages can be used to record the number of metadata integrity violations for each
 metadata integrity check. As an example, for the check called `Category options with no categories`,
 we might have 4 errors on a given day. When the integrity stage is run, it will
 // summarize the number of errors for each integrity check and store this in a data value in DHIS2.
@@ -8,7 +8,26 @@ We can then start to resolve this particular issue by removing the category opti
 // that have no categories assigned to them. The next day when the integrity stage is run again, the number of errors
 // for the `Category options with no categories` check will be 0, indicating that the issue has been resolved.
 
+It is of course possible to use the Data Administration app to view the metadata integrity violations, but this only
+provides a snapshot of the current state of the metadata integrity checks. By using integrity stages, we can
+track the number of metadata integrity violations over time, allowing us to see trends and patterns in the data.
+Since the number of integrity violations is recorded as a normal data value in DHIS2, we can also use the
+Data Visualizer app to create charts and dashboards to visualize the data and share it with others.
+
 To define a new integrity stage, press the "DQ monitor" link in the left menu, and then click
 "New integrity stage". You will be presented with a form to fill in the details of the integrity stage.
 Each of the fields in the form are described below:
-- **Monitoring data element group**:
+- **Stage name**: The name of the integrity stage. You can only have one integrity stage per DQ workbench configuration.
+- **Monitoring data element group**: A special data element group can be used to control which integrity checks are included in the integrity stage.
+  This field is required so be sure to create a data element group and assign all of the integrity check data element which
+    you want to include in the integrity stage.
+- **Period type**: The period type to store the integrity violations in. As an example, if you chose `Monthly`,
+  the integrity counts will be stored in the current month. If you run the stage on a nightly basis, this will have
+  the effect of overwriting the current value each day. However, if you choose `Daily`, the integrity counts will be
+  stored in the current day. If you schedule the stage to run on a daily basis, this will result in a new value being
+  stored each day, allowing you to track the number of integrity violations over time on a more granular level than
+  the monthly period type.
+- **Active**: Whether the integrity stage is active or not. If the integrity stage is not active, it will be excluded
+  when running the integrity analysis with the command line script.
+
+You can also automatically create the necessary data elements with the "Create missing integrity data elements" button.

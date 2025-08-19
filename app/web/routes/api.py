@@ -1,5 +1,8 @@
 import logging
 
+import yaml
+
+from app.web.utils.config_helpers import load_config
 from flask import Blueprint, current_app, request, jsonify
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager
@@ -9,12 +12,11 @@ api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 @api_bp.route('/data-elements')
 def api_data_elements():
-    import traceback
 
-    config = ConfigManager(current_app.config['CONFIG_PATH'])
+    config = ConfigManager(current_app.config['CONFIG_PATH'], config=None, validate_structure=True, validate_runtime=False).config
     utils = Dhis2ApiUtils(
-        base_url=config.server.get("base_url"),
-        d2_token=config.server.get("d2_token")
+        base_url=config['server']['base_url'],
+        d2_token=config['server']['d2_token']
     )
     query = request.args.get('q', '').strip()
 
@@ -46,7 +48,9 @@ def api_data_elements():
 
 @api_bp.route('/datasets')
 def api_datasets():
-    config = load_config(current_app.config['CONFIG_PATH'])
+    config_path = current_app.config['CONFIG_PATH']
+    with open(config_path) as f:
+        config = yaml.safe_load(f) or {}
     utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']

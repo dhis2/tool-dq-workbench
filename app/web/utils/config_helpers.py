@@ -16,3 +16,5 @@ def save_config(config_path, config):
             raise ValueError(f"Configuration validation failed: {e}")
 
 
+def load_config():
+    return None

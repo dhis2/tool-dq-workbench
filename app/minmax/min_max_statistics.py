@@ -18,21 +18,21 @@ def past_values_max_bounds(values, threshold):
     max_val = max(values) if values else 0
     val_max = max(max_val * threshold, 10)
     val_min = max(max_val * (1 - threshold), 0)
-    return val_max, val_min
+    return val_min, val_max
 
 def values_z_score(values, threshold):
     mean = np.mean(values)
     std = np.std(values)
     val_max = mean + threshold * std
     val_min = max(mean - threshold * std, 0)
-    return val_max, val_min
+    return val_min, val_max
 
 def values_mad(values, threshold):
     median = np.median(values)
     mad = median_abs_deviation(values)
     val_max = median + threshold * mad
     val_min = max(median - threshold * mad, 0)
-    return val_max, val_min
+    return val_min, val_max
 
 def values_iqr(values, threshold):
     q1 = np.percentile(values, 25)
@@ -40,7 +40,7 @@ def values_iqr(values, threshold):
     iqr = q3 - q1
     val_min = max(q1 - threshold * iqr, 0)
     val_max = q3 + threshold * iqr
-    return val_max, val_min
+    return val_min, val_max
 
 
 
@@ -98,7 +98,7 @@ def values_boxcox(values, threshold, eps=1e-9):
     if sum(v < val_min for v in values) > (len(values) / 2):
         return np.nan, np.nan, "BOXCOX rejected (too many below min)"
 
-    return val_max, val_min, f"BOXCOX (λ={lmbda:.6g}, tol_std={tol_std:g})"
+    return val_min, val_max, f"BOXCOX (λ={lmbda:.6g}, tol_std={tol_std:g})"
 
 
 
@@ -135,7 +135,7 @@ def _coerce_method(method):
 
 def compute_statistical_bounds(values, method, threshold):
     if not values or len(set(values)) == 1 or check_no_variance(values):
-        val_max, val_min = past_values_max_bounds(values, 1.5)
+        val_min, val_max = past_values_max_bounds(values, 1.5)
         return val_min, val_max, "PREV_MAX - No variance"
 
     method = _coerce_method(method)

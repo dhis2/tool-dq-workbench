@@ -242,7 +242,7 @@ def create_missing_data_elements():
 
     if not missing_checks:
         flash("No missing data elements found for integrity checks.", 'info')
-        return redirect(next_url)  # ← stay on the same page and show the flash
+        return redirect(next_url)
 
     # Build payload and create
     missing_des = [_build_de_payload(check) for check in missing_checks]

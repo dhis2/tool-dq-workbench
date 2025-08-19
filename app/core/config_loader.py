@@ -72,7 +72,9 @@ class ConfigManager:
         self._validate_max_results_within_bounds(config)
         #We need at least analyzer_stages or min_max_stages
         if 'analyzer_stages' not in config and 'min_max_stages' not in config:
-            raise ValueError("Configuration must contain either 'analyzer_stages' or 'min_max_stages'")
+            #Log a warning, but do not raise an error
+            logging.warning("No analyzer_stages or min_max_stages defined in config. This is not an error, but no analysis will be performed.")
+            return
         self._validate_unique_stage_name(config)
 
         if 'analyzer_stages' in config:

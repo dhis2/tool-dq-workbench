@@ -24,6 +24,11 @@
     <tr>
         <td><strong>{{ stage.name }}</strong></td>
         <td class="text-end">
+            <form method="POST"
+                  action="{{ url_for('api.minmax_analysis', stage_index=loop.index0) }}"
+                  class="d-inline"> {# no .run-stage-form #}
+                <button type="submit" class="btn btn-sm btn-outline-success me-1">Analyze</button>
+            </form>
             <form method="POST" action="{{ url_for('api.run_min_max_stage', stage_index=loop.index0) }}"
                   class="run-stage-form d-inline" data-index="{{ loop.index0 }}">
                 <button type="submit" class="btn btn-sm btn-outline-success me-1">Run</button>
@@ -41,49 +46,49 @@
 </table>
 <div id="run-summary" class="mt-3"></div>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.run-stage-form').forEach(form => {
-        form.addEventListener('submit', async (event) => {
-            event.preventDefault();
-            const stageIndex = form.dataset.index;
-            const runSummary = document.getElementById('run-summary');
+document.addEventListener('DOMContentLoaded', () => {
+  const runSummary = document.getElementById('run-summary');
 
-            // Clear previous summary
-            runSummary.innerHTML = 'Running...';
+  document.querySelectorAll('form.run-stage-form').forEach(form => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
 
-            try {
-                const response = await fetch(`/api/run-minmax-stage/${stageIndex}`, {
-                    method: 'POST',
-                });
+      const label = (event.submitter && event.submitter.textContent || 'Running').trim();
+      runSummary.textContent = `${label}...`;
 
-                const responseText = await response.text();
-                try {
-                    const result = JSON.parse(responseText); // Parse JSON
-                    if (result.success) {
-                        runSummary.innerHTML = `
-                            <strong>Run Summary:</strong><br>
-                            Value fallbacks: ${result["Value fallbacks"]}<br>
-                            Bound warnings: ${result["Bound warnings"]}<br>
-                            Value errors: ${result["Value errors"]}<br>
-                            Values ignored: ${result["Values ignored"]}<br>
-                            Values imported: ${result["Values imported"]}<br>
-                            Values missing: ${result["Values missing"]}<br>
-                            Duration: ${result["Duration"]}<br>
-                        `;
-                    } else {
-                        runSummary.innerHTML = `Error: ${result.errors.join(', ')}`;
-                    }
-                } catch (jsonError) {
-                    console.error('Failed to parse JSON:', responseText);
-                    runSummary.innerHTML = `Error: Unexpected response format.`;
-                }
-            } catch (error) {
-                runSummary.innerHTML = `Error: ${error.message}`;
-            }
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
+
+        // The run endpoint should return JSON only
+        const data = await res.json();
+
+        if (data.success) {
+          runSummary.innerHTML = `
+            <strong>${label} Summary:</strong><br>
+            Value fallbacks: ${data["Value fallbacks"]}<br>
+            Bound warnings: ${data["Bound warnings"]}<br>
+            Value errors: ${Array.isArray(data["Value errors"]) ? data["Value errors"].length : data["Value errors"]}<br>
+            Values ignored: ${data["Values ignored"]}<br>
+            Values imported: ${data["Values imported"]}<br>
+            Values missing: ${data["Values missing"]}<br>
+            Duration: ${data["Duration"]}<br>
+          `;
+        } else {
+          const errs = Array.isArray(data.errors) ? data.errors.join(', ') : (data.errors || 'Unknown error');
+          runSummary.textContent = `Error: ${errs}`;
+        }
+      } catch (err) {
+        runSummary.textContent = `Error: ${err.message}`;
+      }
     });
+  });
 });
 </script>
+S
+
 <!-- Run summary -->
 
 {% include "partials/_run_controls.html" %}

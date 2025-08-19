@@ -26,28 +26,28 @@ def test_check_no_variance_high():
     assert not check_no_variance(df)
 
 def test_past_values_max_bounds(simple_data):
-    val_max, val_min = past_values_max_bounds(simple_data, 1.25)
+    val_min, val_max = past_values_max_bounds(simple_data, 1.25)
     assert val_max >= 10  # Should always be at least 10
     assert val_max > val_min
     assert isinstance(val_max, float)
 
 def test_values_z_score(simple_data):
-    val_max, val_min = values_z_score(simple_data, 1.0)
+    val_min, val_max = values_z_score(simple_data, 1.0)
     assert val_max > val_min
 
 def test_values_mad(simple_data):
-    val_max, val_min = values_mad(simple_data, 1.0)
+    val_min, val_max = values_mad(simple_data, 1.0)
     assert val_max > val_min
 
 def test_values_boxcox(simple_data):
     # All values must be > 0
-    val_max, val_min = values_boxcox(simple_data, 2.0)
+    val_min, val_max, comment = values_boxcox(simple_data, 2.0)
     assert np.isfinite(val_max)
     assert np.isfinite(val_min)
 
 def test_values_boxcox_with_zero():
-    df = pd.DataFrame({"value": [0, 5, 10]})
-    val_max, val_min = values_boxcox(df, 2.0)
+    df =  [0, 5, 10]
+    val_min, val_max = values_boxcox(df, 2.0)
     assert np.isnan(val_max) and np.isnan(val_min)
 
 def test_select_method_for_median():

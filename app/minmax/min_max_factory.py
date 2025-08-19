@@ -2,9 +2,11 @@ import asyncio
 import logging
 import math
 import statistics
+import pandas as pd
 from collections import defaultdict
 
 from requests import RequestException
+from typing import List
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.numeric_value_types import NumericValueType
@@ -41,7 +43,8 @@ class MinMaxFactory:
         prepared_stages = self.prepare_stage(stage)
         all_responses = []
         for prepared_stage in prepared_stages:
-            grouped_values = await self.prepare_data_for_dataset(prepared_stage, semaphore, session)
+            data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
+            grouped_values = self.group_data_for_dataset(data_values)
             min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
             payload = self.prepare_min_max_payload(min_max_results, prepared_stage['dataset_id'])
 
@@ -68,14 +71,26 @@ class MinMaxFactory:
             except Exception as e:
                 logging.error(f"Error computing min/max for ({ou_id}, {de_id}, {coc_id}): {e}")
                 logging.error(f"Values: {values}")
-                logging.error(f"Minmax: {min_max}")
         logging.info(f"Computed {len(min_max_results)} min/max value sets.")
         return min_max_results
 
-    async def prepare_data_for_dataset(self, prepared_stage, semaphore, session):
+    async def fetch_data_for_dataset(self, prepared_stage, semaphore, session):
+        # normalize input: accept dict or 1-item list[dict]
+        if isinstance(prepared_stage, list):
+            if len(prepared_stage) == 1 and isinstance(prepared_stage[0], dict):
+                prepared_stage = prepared_stage[0]
+            else:
+                raise TypeError(
+                    f"Expected dict or single-item list of dicts for prepared_stage, got: {type(prepared_stage)} ({prepared_stage!r})"
+                )
+
         logging.info(f"Processing dataset: {prepared_stage['dataset_id']}")
         data_values = await self.get_stage_data_values(prepared_stage, session, semaphore)
         logging.info(f"Fetched {len(data_values)} data values.")
+        return data_values
+
+    @staticmethod
+    def group_data_for_dataset(data_values):
         # Group data by (orgUnit, dataElement, categoryOptionCombo)
         grouped = defaultdict(list)
         for dv in data_values:
@@ -476,5 +491,77 @@ class MinMaxFactory:
             "optionCombo": coc_id,
             "comment": comment,
         }
+
+    @staticmethod
+    def build_minmax_csv_dataframe(raw_values: List[dict], minmax_list: List[dict]) -> pd.DataFrame:
+        # --- Raw values -> wide by period ---
+        dv = pd.DataFrame(raw_values)
+        if dv.empty:
+            # Create an empty frame with the expected id columns if no data
+            dv = pd.DataFrame(columns=["orgUnit", "dataElement", "categoryOptionCombo", "period", "value"])
+
+        # normalize types
+        dv["value"] = pd.to_numeric(dv.get("value"), errors="coerce")
+        dv["period"] = dv["period"].astype(str)
+
+        # Make a stable key and pivot
+        dv = dv.rename(columns={"orgUnit": "organisationUnit", "categoryOptionCombo": "optionCombo"})
+        dv["__key__"] = dv[["organisationUnit", "dataElement", "optionCombo"]].agg("|".join, axis=1)
+
+        periods = sorted(dv["period"].unique().tolist())
+        wide = (
+            dv.pivot_table(
+                index="__key__", columns="period", values="value", aggfunc="first", dropna=False
+            )
+            .reset_index()
+        )
+
+        # split key back to columns
+        wide[["organisationUnit", "dataElement", "optionCombo"]] = wide["__key__"].str.split("|", expand=True)
+        wide = wide.drop(columns="__key__")
+
+        # --- Min/Max results -> tidy ---
+        mm = pd.DataFrame(minmax_list)
+        if mm.empty:
+            mm = pd.DataFrame(columns=["organisationUnit", "dataElement", "optionCombo", "min", "max", "comment"])
+
+        # ensure expected columns exist
+        if "categoryOptionCombo" in mm.columns and "optionCombo" not in mm.columns:
+            mm = mm.rename(columns={"categoryOptionCombo": "optionCombo"})
+        # keep only needed
+        keep = ["organisationUnit", "dataElement", "optionCombo", "min", "max", "comment"]
+        for c in keep:
+            if c not in mm.columns:
+                mm[c] = pd.Series(dtype="object")
+        mm = mm[keep].drop_duplicates()
+
+        # --- Join and order columns ---
+        out = wide.merge(mm, on=["organisationUnit", "dataElement", "optionCombo"], how="left", validate="many_to_many")
+
+        ordered_cols = ["organisationUnit", "dataElement", "optionCombo"] + periods + ["min", "max", "comment",
+                                                                                       "active"]
+        # Add any periods that weren't in the pivot (if none present)
+        for col in ordered_cols:
+            if col not in out.columns:
+                out[col] = pd.NA
+        out = out[ordered_cols]
+
+        return out
+
+
+    async def analyze_stage(self, stage, session, semaphore):
+        """
+        Prepare the analysis workbook for the given stage.
+        This includes fetching data values and calculating min/max values.
+        """
+        df = pd.DataFrame()
+        prepared_stages = self.prepare_stage(stage)
+        for prepared_stage in prepared_stages:
+            data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
+            grouped_values = self.group_data_for_dataset(data_values)
+            min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
+            df = self.build_minmax_csv_dataframe(data_values, min_max_results)
+
+        return df
 
 
