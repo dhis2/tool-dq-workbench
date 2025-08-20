@@ -1,23 +1,24 @@
 import asyncio
 import logging
 import math
+import random
 import statistics
-import pandas as pd
 from collections import defaultdict
+from typing import List, Iterable
 
+import pandas as pd
 from requests import RequestException
-from typing import List
 
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.numeric_value_types import NumericValueType
 from app.core.period_utils import Dhis2PeriodUtils
 from app.minmax.min_max_results_tracker import ResultTracker
+from app.minmax.min_max_record import MinMaxRecord
 from app.minmax.min_max_statistics import (
     compute_statistical_bounds,
     select_method_for_median,
-    past_values_max_bounds
+    past_values_max_bounds,
 )
-
 
 class MinMaxFactory:
     MAX_INT_32 = 2_147_483_647
@@ -46,7 +47,9 @@ class MinMaxFactory:
             data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
             grouped_values = self.group_data_for_dataset(data_values)
             min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
-            payload = self.prepare_min_max_payload(min_max_results, prepared_stage['dataset_id'])
+            imputed_results = self.impute_missing_minmmax_values(prepared_stage, min_max_results)
+            payload = self.prepare_min_max_payload(imputed_results, prepared_stage['dataset_id'])
+            #GH
 
             #Decide to use bulk or legacy endpoint based on server version
             async with semaphore:
@@ -127,81 +130,176 @@ class MinMaxFactory:
             return 'legacy'
 
     @staticmethod
-    def is_valid_min_max(item):
-
-        try:
-            return (
-                    item
-                    and isinstance(item["min"], int)
-                    and isinstance(item["max"], int)
-                    and abs(item["min"]) <= MinMaxFactory.MAX_INT_32
-                    and abs(item["max"]) <= MinMaxFactory.MAX_INT_32
-                    and item["min"] <= item["max"]
-                    and item.get("dataElement")
-                    and item.get("organisationUnit")
-                    and item.get("optionCombo")
-            )
-        except (KeyError, TypeError):
+    def is_valid_min_max(item: "MinMaxRecord") -> bool:
+        # Only accept the dataclass
+        if not isinstance(item, MinMaxRecord):
             return False
 
-    def prepare_min_max_payload(self, min_max_values, dataset_id):
-        filtered_values = []
-        for item in min_max_values:
-            if self.is_valid_min_max(item):
-                filtered_values.append(item)
+        # Must have identifiers
+        if not (item.dataElement and item.organisationUnit and item.optionCombo):
+            return False
+
+        # min/max must be ints and within bounds and ordered
+        if not (isinstance(item.min, int) and isinstance(item.max, int)):
+            return False
+
+        if abs(item.min) > MinMaxFactory.MAX_INT_32 or abs(item.max) > MinMaxFactory.MAX_INT_32:
+            return False
+
+        if item.min > item.max:
+            return False
+
+        return True
+
+    def prepare_min_max_payload(self, min_max_values: Iterable[MinMaxRecord], dataset_id: str) -> dict:
+        filtered: List[MinMaxRecord] = []
+
+        for rec in min_max_values:
+            if not isinstance(rec, MinMaxRecord):
+                logging.warning("Non-MinMaxRecord encountered: %r", type(rec))
+                self.result_tracker.add_invalid_min_max()
+                continue
+
+            if self.is_valid_min_max(rec):
+                filtered.append(rec)
             else:
                 self.result_tracker.add_invalid_min_max()
 
-        payload = {
-            "dataSet": dataset_id,
-            "values": [
-                {
-                    "dataElement": item["dataElement"],
-                    "orgUnit": item["organisationUnit"],
-                    "optionCombo": item["optionCombo"],
-                    "minValue": item["min"],
-                    "maxValue": item["max"]
-                }
-                for item in filtered_values
-            ]
-        }
+        values = [
+            {
+                "dataElement": r.dataElement,
+                "orgUnit": r.organisationUnit,
+                "optionCombo": r.optionCombo,
+                "minValue": int(r.min),
+                "maxValue": int(r.max),
+            }
+            for r in filtered
+        ]
 
-        logging.info(f"Filtered {len(min_max_values) - len(filtered_values)} invalid min/max records.")
-        logging.info(f"Prepared payload with {len(filtered_values)} values.")
+        payload = {"dataSet": dataset_id, "values": values}
+
+        logging.info("Filtered %d invalid min/max records.", len(list(min_max_values)) - len(filtered))
+        logging.info("Prepared payload with %d values.", len(values))
 
         return payload
 
-    async def post_min_max_values_bulk(self, payload, session, semaphore, chunk_size=100000):
-        """
-        Post the min/max values to the server in bulk in chunks to avoid payload size limits.
-        """
-        start_time = asyncio.get_event_loop().time()
-        url = f'{self.base_url}/api/minMaxDataElements/upsert'
-        values = payload["values"]
-        total = len(values)
-        data_set = payload["dataSet"]
 
-        for i in range(0, total, chunk_size):
-            chunk = values[i:i + chunk_size]
-            chunk_payload = {
-                "dataSet": data_set,
-                "values": chunk
-            }
-            async with semaphore:
-                async with session.post(url, json=chunk_payload) as response:
-                    if response.status == 200:
-                        resp = await response.json()
-                        self.result_tracker.add_imported(resp.get("successful", 0))
-                        self.result_tracker.add_ignored(resp.get("ignored", 0))
-                        logging.info(f"Successfully posted chunk {i // chunk_size + 1} with {len(chunk)} values.")
-                    else:
+
+    async def _post_chunk(self, url, chunk_payload, session, semaphore, index: int,
+                          max_retries: int = 3, backoff_base: float = 0.5):
+
+        OK_STATUSES = {200, 201}
+        RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+
+        """
+        Post one chunk with bounded concurrency and simple exponential backoff.
+        Returns (successful, ignored).
+        """
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                async with semaphore:
+                    async with session.post(url, json=chunk_payload) as response:
+                        if response.status in OK_STATUSES:
+                            # Body may be JSON or empty
+                            try:
+                                resp = await response.json()
+                            except Exception:
+                                resp = {}
+                            successful = resp.get("successful", len(chunk_payload["values"]))
+                            ignored = resp.get("ignored", 0)
+                            logging.info(
+                                f"Chunk {index} OK (attempt {attempt}) with {len(chunk_payload['values'])} values.")
+                            return successful, ignored
+
+                        # Retry on transient/rate-limit statuses
+                        text = await response.text()
+                        if response.status in RETRYABLE_STATUSES and attempt < max_retries:
+                            delay = backoff_base * (2 ** (attempt - 1)) + random.random() * 0.2
+                            logging.warning(
+                                f"Chunk {index} got {response.status}. Retrying in {delay:.2f}s… Body: {text[:300]}")
+                            await asyncio.sleep(delay)
+                            continue
+
+                        # Non-retryable (or exhausted retries)
                         raise RequestException(
-                            f"Failed to post min/max values chunk {i // chunk_size + 1}: {response.status} - {await response.text()}"
+                            f"Chunk {index} failed: {response.status} - {text[:500]}"
                         )
 
-        end_time = asyncio.get_event_loop().time()
-        elapsed_time = end_time - start_time
-        logging.info(f"All chunks posted in {elapsed_time:.2f} seconds.")
+            except (asyncio.TimeoutError, Exception) as e:
+                # Network/timeout — retry if we have attempts left
+                if isinstance(e, RequestException) and attempt >= max_retries:
+                    logging.error(str(e))
+                    raise
+                if not isinstance(e, RequestException) and attempt < max_retries:
+                    delay = backoff_base * (2 ** (attempt - 1)) + random.random() * 0.2
+                    logging.warning(f"Chunk {index} error: {e}. Retrying in {delay:.2f}s…")
+                    await asyncio.sleep(delay)
+                    continue
+                # Exhausted retries
+                logging.error(f"Chunk {index} failed after {attempt} attempts: {e}")
+                raise
+
+    async def post_min_max_values_bulk(self, payload, session, semaphore, chunk_size=100000,
+                                       max_retries: int = 3, backoff_base: float = 0.5):
+        """
+        Concurrent bulk upload with bounded concurrency via `semaphore`.
+        Expects `payload` from prepare_min_max_payload (plain dict values).
+        """
+        values = payload.get("values", [])
+        if not values:
+            logging.info("No min/max values to post. Skipping bulk upload.")
+            return
+
+        url = f'{self.base_url}/api/minMaxDataElements/upsert'
+        data_set = payload["dataSet"]
+        total = len(values)
+
+        # Slice into chunks
+        chunks = []
+        for i in range(0, total, chunk_size):
+            chunk = values[i:i + chunk_size]
+            chunks.append((i // chunk_size + 1, {"dataSet": data_set, "values": chunk}))
+
+        start_time = asyncio.get_event_loop().time()
+
+        # Fire tasks (bounded by semaphore inside _post_chunk)
+        tasks = [
+            self._post_chunk(url, chunk_payload, session, semaphore, index,
+                             max_retries=max_retries, backoff_base=backoff_base)
+            for index, chunk_payload in chunks
+        ]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Aggregate totals and handle failures
+        total_successful = 0
+        total_ignored = 0
+        first_error = None
+
+        for idx, result in enumerate(results, start=1):
+            if isinstance(result, Exception):
+                # capture first error to raise after aggregation
+                if first_error is None:
+                    first_error = result
+                logging.error(f"Chunk {idx} failed: {result}")
+            else:
+                successful, ignored = result
+                total_successful += successful
+                total_ignored += ignored
+
+        # Update tracker once (avoids interleaved updates from concurrent tasks)
+        self.result_tracker.add_imported(total_successful)
+        self.result_tracker.add_ignored(total_ignored)
+
+        elapsed = asyncio.get_event_loop().time() - start_time
+        logging.info(f"Posted {len(chunks)} chunks ({total} values) in {elapsed:.2f}s; "
+                     f"successful={total_successful}, ignored={total_ignored}.")
+
+        # If any chunk failed, surface the error (you can choose to swallow it if partial success is OK)
+        if first_error:
+            raise first_error
 
     async def post_min_max_values(self, payload, session, semaphore):
         """
@@ -249,7 +347,7 @@ class MinMaxFactory:
         """
         Fetch metadata for a specific dataset.
         """
-        fields = ['id', 'periodType', 'dataSetElements[dataElement[id,valueType]]']
+        fields = ['id','name','organisationUnits', 'periodType', 'dataSetElements[dataElement[id,valueType],categoryCombo[categoryOptionCombos[id]]']
 
         resp = self.api_utils.fetch_metadata_list(
             endpoint='dataSets',
@@ -303,6 +401,11 @@ class MinMaxFactory:
                                                     self.config.get("completeness_threshold", 0.1)),
                 'groups': stage.get('groups'),
             })
+            #Add the missing_data_min and missing_data_max to the prepared stage if they exist
+            if 'missing_data_min' in stage:
+                prepared_stages[-1]['missing_data_min'] = stage['missing_data_min']
+            if 'missing_data_max' in stage:
+                prepared_stages[-1]['missing_data_max'] = stage['missing_data_max']
 
         return prepared_stages
 
@@ -412,9 +515,21 @@ class MinMaxFactory:
                     raise RequestException(
                         f"Failed to fetch existing min/max values: {response.status} - {await response.text()}")
 
+
+
     def calculate_min_max_value(self, ou_id, de_id, coc_id, values, stage):
         if not values:
-            return None
+            logging.warning(f"No values found for DE {de_id} in OU {ou_id}. Skipping min/max calculation.")
+            self.result_tracker.add_missing()
+            return MinMaxRecord(
+                dataElement=de_id,
+                organisationUnit=ou_id,
+                optionCombo=coc_id,
+                min=None,
+                max=None,
+                generated=True,
+                comment="No values found"
+            )
 
         values = [v for v in values if isinstance(v, (int, float))]
         #Adjust numbers to be positive, as min/max values are always positive
@@ -427,14 +542,23 @@ class MinMaxFactory:
             logging.info(f"Adjusted values for DE {de_id} in OU {ou_id} to be positive: {values}")
         else:
             min_value_offset = 0
-        periods_with_data = float(len(values))
+        periods_with_data = len(values)
         completeness_threshold = float(stage.get("completeness_threshold", self.config.get("completeness_threshold", 0.1)))
-        period_count = float(stage.get("period_count"))
+        period_count = stage.get("period_count")
 
         required_periods = math.ceil(period_count * completeness_threshold)
         if periods_with_data < required_periods:
             self.result_tracker.add_missing()
-            return None
+            logging.warning(f"Not enough data for DE {de_id} in OU {ou_id}. Required: {required_periods}, found: {periods_with_data}.")
+            return MinMaxRecord(
+                dataElement=de_id,
+                organisationUnit=ou_id,
+                optionCombo=coc_id,
+                min=None,
+                max=None,
+                generated=True,
+                comment="Not enough data"
+            )
 
         self.result_tracker.add_valid()
         median_val = statistics.median(values)
@@ -452,11 +576,27 @@ class MinMaxFactory:
             if not isinstance(min_constant, int) or not isinstance(max_constant, int):
                 self.result_tracker.add_error()
                 logging.error(f"Invalid constant values for DE {de_id} in OU {ou_id}: {min_constant}, {max_constant}")
-                return None
+                return MinMaxRecord(
+                    dataElement=de_id,
+                    organisationUnit=ou_id,
+                    optionCombo=coc_id,
+                    min=None,
+                    max=None,
+                    generated=True,
+                    comment="Invalid constant values"
+                )
             if min_constant >= max_constant:
                 self.result_tracker.add_error()
                 logging.error(f"Min constant is greater than or equal to max constant for DE {de_id} in OU {ou_id}: {min_constant} > {max_constant}")
-                return None
+                return MinMaxRecord(
+                    dataElement=de_id,
+                    organisationUnit=ou_id,
+                    optionCombo=coc_id,
+                    min=None,
+                    max=None,
+                    generated=True,
+                    comment="Min constant is greater than or equal to max constant"
+                )
             val_min = min_constant
             val_max = max_constant
             comment = "CONSTANT"
@@ -482,15 +622,15 @@ class MinMaxFactory:
             logging.warning(f"Min and max are equal for DE {de_id} in OU {ou_id} with values: {values}")
             return None
 
-        return {
-            "min": val_min,
-            "max": val_max,
-            "generated": True,
-            "dataElement": de_id,
-            "organisationUnit": ou_id,
-            "optionCombo": coc_id,
-            "comment": comment,
-        }
+        return MinMaxRecord(
+            dataElement=de_id,
+            organisationUnit=ou_id,
+            optionCombo=coc_id,
+            min=val_min,
+            max=val_max,
+            generated=False,
+            comment=comment
+        )
 
     @staticmethod
     def build_minmax_csv_dataframe(raw_values: List[dict], minmax_list: List[dict]) -> pd.DataFrame:
@@ -563,5 +703,61 @@ class MinMaxFactory:
             df = self.build_minmax_csv_dataframe(data_values, min_max_results)
 
         return df
+
+    def impute_missing_minmmax_values(self, prepared_stage, min_max_results):
+        """
+        Impute missing min/max values based on existing data.
+        This is a placeholder for any imputation logic you might want to implement.
+        """
+        #First loop over all orgunits and data elements in the prepared stage. If there is
+        # no min/max value in the min_max_results for a given combination of data element, optionCombo and orgunit,
+        # create a MinMaxRecord with the   missing_data_max
+        #missing_data_min from the stage.
+        #Exit early if there are no missing_data_min AND missing_data_max
+        if not (prepared_stage.get('missing_data_min') or prepared_stage.get('missing_data_max')):
+            logging.info("No missing data min/max values to impute. Skipping imputation.")
+            return min_max_results
+        imputed_results = []
+        existing_keys = {(r.organisationUnit, r.dataElement, r.optionCombo) for r in min_max_results}
+        for ou in prepared_stage['dataset_metadata'].get('organisationUnits', []):
+            ou_id = ou.get('id')
+            for dse in prepared_stage['dataset_metadata'].get('dataSetElements', []):
+                de_id = dse['dataElement']['id']
+                #If the filtered_data_elements is set, skip the data element if it is not in the list
+                if prepared_stage['filtered_data_elements'] and de_id not in prepared_stage['filtered_data_elements']:
+                    continue
+                #Skip if the data element is not numeric
+                if dse['dataElement'].get('valueType') not in NumericValueType.list():
+                    logging.debug(f"Skipping non-numeric data element {de_id} in dataset {prepared_stage['dataset_id']}.")
+                    continue
+                #Loop over the category option combos
+                for coc in dse.get('categoryCombo', {}).get('categoryOptionCombos', []):
+                    coc_id = coc.get('id')
+                    # Create a key for the combination of orgUnit, dataElement and categoryOptionCombo
+                    key = (ou_id, de_id, coc_id)
+
+                    if key not in existing_keys:
+                        # Create a MinMaxRecord with the missing_data_min and missing_data_max
+                        min_value = prepared_stage.get('missing_data_min')
+                        max_value = prepared_stage.get('missing_data_max')
+                        if min_value is None or max_value is None:
+                            logging.warning(f"Missing min/max values for {key}. Skipping imputation.")
+                            continue
+                        self.result_tracker.add_imputed()
+                        imputed_results.append(MinMaxRecord(
+                            dataElement=de_id,
+                            organisationUnit=ou_id,
+                            optionCombo=coc_id,
+                            min=min_value,
+                            max=max_value,
+                            generated=True,
+                            comment="Imputed from missing_data_min/max"
+                        ))
+        # Append the original min_max_results to the imputed results
+        imputed_results.extend(min_max_results)
+        logging.info(f"Imputed {len(imputed_results) - len(min_max_results)} missing min/max values.")
+        return imputed_results
+
+
 
 

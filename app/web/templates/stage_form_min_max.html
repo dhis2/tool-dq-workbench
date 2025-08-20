@@ -23,6 +23,19 @@
         <input class="form-control" id="completeness_threshold" name="completeness_threshold" type="number" step="0.01"
                value="{{ stage.completeness_threshold or 0.8 }}" required>
     </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="missing_data_min">Missing data minimum</label>
+        <input class="form-control" id="missing_data_min" name="missing_data_min" type="number" step="1"
+               value="{{ stage.missing_data_min or 0 }}">
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="missing_data_max">Missing data maximum</label>
+        <input class="form-control" id="missing_data_max" name="missing_data_max" type="number" step="1"
+               value="{{ stage.missing_data_max or 100 }}">
+    </div>
+
     <div class="mb-3">
         <label class="form-label" for="previous_periods">Previous periods</label>
         <input class="form-control" id="previous_periods" name="previous_periods" type="number" min="0" step="1"

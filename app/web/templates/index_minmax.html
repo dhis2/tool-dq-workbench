@@ -49,20 +49,87 @@
 document.addEventListener('DOMContentLoaded', () => {
   const runSummary = document.getElementById('run-summary');
 
+  // Handle ANALYZE: fetch the CSV, trigger download, then re-enable the button
+  document.querySelectorAll('form:not(.run-stage-form)').forEach(form => {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const btn = event.submitter;
+      const original = btn ? btn.textContent : 'Analyze';
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Analyzing...';
+      }
+
+      try {
+        const res = await fetch(form.action, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            // helps some backends branch behavior if needed
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'text/csv,application/octet-stream'
+          },
+          // include form data if you ever add inputs
+          body: new FormData(form)
+        });
+
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+
+        const ct = res.headers.get('Content-Type') || '';
+        // If server returned JSON (e.g., error), surface it and re-enable
+        if (ct.includes('application/json')) {
+          const data = await res.json();
+          const msg = data && (data.error || data.message || JSON.stringify(data));
+          alert(`Analyze failed: ${msg}`);
+        } else {
+          // Assume a file: stream to a blob and download
+          const blob = await res.blob();
+
+          // Try to get filename from Content-Disposition
+          const cd = res.headers.get('Content-Disposition') || '';
+          const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
+          const filename = decodeURIComponent((match && (match[1] || match[2])) || 'analysis.csv');
+
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        }
+      } catch (err) {
+        alert(`Analyze error: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;       // <— re-enable after download (or error)
+          btn.textContent = original; // restore label
+        }
+      }
+    });
+  });
+
+  // Existing RUN handler (unchanged)
   document.querySelectorAll('form.run-stage-form').forEach(form => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
 
-      const label = (event.submitter && event.submitter.textContent || 'Running').trim();
+      const btn = event.submitter;
+      const label = (btn && btn.textContent) ? btn.textContent.trim() : 'Running';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Running...';
+      }
       runSummary.textContent = `${label}...`;
 
       try {
         const res = await fetch(form.action, {
           method: 'POST',
-          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
         });
-
-        // The run endpoint should return JSON only
         const data = await res.json();
 
         if (data.success) {
@@ -74,6 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Values ignored: ${data["Values ignored"]}<br>
             Values imported: ${data["Values imported"]}<br>
             Values missing: ${data["Values missing"]}<br>
+            Values imputed: ${data["Values imputed"]}<br>
             Duration: ${data["Duration"]}<br>
           `;
         } else {
@@ -82,12 +150,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (err) {
         runSummary.textContent = `Error: ${err.message}`;
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Run';
+        }
       }
     });
   });
 });
 </script>
-S
+
+
+
 
 <!-- Run summary -->
 

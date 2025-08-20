@@ -46,6 +46,7 @@ def run_min_max_stage(stage_index):
             "Values missing": result_summary.get("missing", 0),
             "Bound warnings": result_summary.get("bound_warnings", 0),
             "Duration": f"{process_duration:.2f} seconds",
+            "Values imputed": result_summary.get("imputed", 0),
         })
     except Exception as e:
         return jsonify({

@@ -30,6 +30,8 @@ def minmax_stage_view(stage_index=None):
         # Update stage fields from form
         stage['name'] = request.form['stage_name']
         stage['uid'] = stage.get('uid', UidUtils.generate_uid())
+        stage['missing_data_min'] = int(request.form.get('missing_data_min',""))
+        stage['missing_data_max'] = int(request.form.get('missing_data_max', ""))
         stage['completeness_threshold'] = float(request.form.get('completeness_threshold', 0.1))
         stage['active'] = request.form.get('active', 'off') == 'on'
         stage['duration'] = request.form.get('duration') or '12 months'

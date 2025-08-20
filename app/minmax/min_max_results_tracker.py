@@ -9,6 +9,7 @@ class ResultTracker:
             "invalid_min_max": 0,
             "imported": 0,
             "ignored": 0,
+            "imputed": 0,
             "bound_warnings": 0
         }
 
@@ -20,6 +21,7 @@ class ResultTracker:
     def add_imported(self, amount=1): self._counters["imported"] += amount
     def add_ignored(self, amount=1): self._counters["ignored"] += amount
     def add_fallback(self, amount=1): self._counters["fallbacks"] += amount
+    def add_imputed(self, amount=1): self._counters["imputed"] += amount
 
     def get_summary(self):
         return self._counters.copy()
