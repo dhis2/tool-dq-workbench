@@ -1,4 +1,4 @@
-# Validation Rule Monitoring App for DHIS2
+# Data Quality Workbench App for DHIS2
 
 ## Overview
 The Data Quality Workbench is a server-side app designed for use with DHIS2. 
@@ -156,11 +156,8 @@ The app is designed to evolve based on user feedback. Potential features include
 
 ## Conclusion
 
-The Validation Rule Monitoring App empowers organizations to maintain high data quality standards in DHIS2 by automating the detection and tracking of validation rule violations. By ensuring data consistency and accuracy, the app supports better decision-making and improved health outcomes.
-
-## Setup Instructions
-
-### 1. Clone the Repository
-
-```bash
-git clone 
+The Validation Rule Monitoring App empowers organizations
+to maintain high data quality standards in DHIS2 by automating 
+the detection and tracking of validation rule violations, outliers, and metadata inconsistencies.
+By ensuring data consistency and accuracy, 
+the app supports better decision-making and improved health outcomes.
