@@ -148,7 +148,7 @@ class ConfigManager:
         if not match:
             raise ValueError(
                 f"Invalid duration format in stage '{stage_name}': '{value}'. "
-                "Expected format like '12 monthly', '1 yearly', etc."
+                "Expected format like '12 months', '1 years', etc."
             )
         amount, unit = match.groups()
         if int(amount) <= 0:
@@ -183,10 +183,10 @@ class ConfigManager:
         end_date = None
         start_date_offset = stage['params'].get('start_date_offset', None)
         end_date_offset = stage['params'].get('end_date_offset', None)
-        if start_date_offset is not None:
+        if start_date_offset:
             ConfigManager._is_valid_duration(start_date_offset, stage['name'])
             start_date = Dhis2PeriodUtils.get_start_date_from_today(start_date_offset)
-        if end_date_offset is not None:
+        if end_date_offset:
             ConfigManager._is_valid_duration(end_date_offset, stage['name'])
             end_date = Dhis2PeriodUtils.get_start_date_from_today(end_date_offset)
         if start_date is not None and end_date is not None:
