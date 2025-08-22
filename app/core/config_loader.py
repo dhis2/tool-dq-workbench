@@ -5,7 +5,7 @@ import re
 from app.core.time_unit import TimeUnit
 import logging
 from typing import Any, Dict, Sequence
-from build.lib.app.core.period_utils import Dhis2PeriodUtils
+from app.core.period_utils import Dhis2PeriodUtils
 
 
 class ConfigManager:

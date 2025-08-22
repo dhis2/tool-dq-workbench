@@ -549,7 +549,7 @@ class MinMaxFactory:
         required_periods = math.ceil(period_count * completeness_threshold)
         if periods_with_data < required_periods:
             self.result_tracker.add_missing()
-            logging.warning(f"Not enough data for DE {de_id} in OU {ou_id}. Required: {required_periods}, found: {periods_with_data}.")
+            logging.debug(f"Not enough data for DE {de_id} in OU {ou_id}. Required: {required_periods}, found: {periods_with_data}.")
             return MinMaxRecord(
                 dataElement=de_id,
                 organisationUnit=ou_id,
