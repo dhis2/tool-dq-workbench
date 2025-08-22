@@ -51,7 +51,7 @@ Installation Steps
 5. **Install the development dependencies** (optional):
    If you want to contribute to the project or run tests, install the development dependencies:
    ```
-   pip install -r requirements.txt
+   pip install -e .[dev]
    ```
 
 6. **Modify the sample configuration file**:
