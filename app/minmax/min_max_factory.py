@@ -564,7 +564,20 @@ class MinMaxFactory:
         self.result_tracker.add_valid()
         median_val = statistics.median(values)
 
-        method, threshold = select_method_for_median(stage.get("groups", []), median_val)
+        try:
+            method, threshold = select_method_for_median(stage.get("groups", []), median_val)
+        except ValueError as e:
+            self.result_tracker.add_error()
+            logging.error(f"Error selecting method for DE {de_id}/COC {coc_id} in OU {ou_id}: {e}")
+            return MinMaxRecord(
+                dataElement=de_id,
+                organisationUnit=ou_id,
+                optionCombo=coc_id,
+                min=None,
+                max=None,
+                generated=True,
+                comment="No method group found. Consider to increase limitMedian value."
+            )
 
         if method == "CONSTANT":
             #Filter the groups which have method as CONSTANT
@@ -606,7 +619,7 @@ class MinMaxFactory:
 
             if not math.isfinite(val_min) or not math.isfinite(val_max):
                 self.result_tracker.add_fallback()
-                val_max, val_min = past_values_max_bounds(values, 1.5)
+                val_min, val_max = past_values_max_bounds(values, 1.5)
                 comment += " - Fallback to Prev max"
 
             #Need to offset back with the min_value adjustment
@@ -620,8 +633,16 @@ class MinMaxFactory:
 
         if val_max == val_min:
             self.result_tracker.add_error()
-            logging.warning(f"Min and max are equal for DE {de_id} in OU {ou_id} with values: {values}")
-            return None
+            logging.warning(f"Min and max are equal for DE {de_id}/COC {coc_id} in OU {ou_id} with values: {values}")
+            return MinMaxRecord(
+                dataElement=de_id,
+                organisationUnit=ou_id,
+                optionCombo=coc_id,
+                min=None,
+                max=None,
+                generated=True,
+                comment="Min and max are equal"
+            )
 
         return MinMaxRecord(
             dataElement=de_id,
