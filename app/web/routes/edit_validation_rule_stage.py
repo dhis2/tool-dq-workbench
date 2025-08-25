@@ -80,7 +80,6 @@ def validation_rule_stage_view(stage_index=None):
             config.setdefault('analyzer_stages', []).append(stage)
 
         try:
-            ConfigManager.validate_structure(config)
             save_config(config_path, config)
             flash(f"{'Updated' if is_edit else 'New'} validation rule stage saved.", 'success')
             return redirect(url_for('ui.index'))
