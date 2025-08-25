@@ -74,7 +74,7 @@ def main():
     for rule in app.url_map.iter_rules():
         print(f"  {rule.endpoint}: {rule.rule}")
 
-    app.run(debug=True, use_reloader=False)  # use_reloader=False helps with PyCharm
+    app.run(debug=True, use_reloader=False)
 
 
 if __name__ == '__main__':
