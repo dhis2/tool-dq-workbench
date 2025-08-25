@@ -531,28 +531,16 @@ class MinMaxFactory:
                 comment="No values found"
             )
 
-        values = [v for v in values if isinstance(v, (int, float))]
-        #Adjust numbers to be positive, as min/max values are always positive
-        min_value = min(values)
-        #Arbitrary small epsilon to avoid zero values which will lead to problems with Box/Cox
-        epsilon = 1e-3
-        if min_value <= 0:
-            min_value_offset = abs(min_value) + epsilon
-            values = [v + min_value_offset for v in values]
-            logging.info(f"Adjusted values for DE {de_id} in OU {ou_id} to be positive: {values}")
-        else:
-            min_value_offset = 0
-        periods_with_data = len(values)
+        min_value_offset, periods_with_data, values = self._adjust_values(de_id, ou_id, values)
         completeness_threshold = float(stage.get("completeness_threshold", self.config.get("completeness_threshold", 0.1)))
         period_count = stage.get("period_count")
-
         required_periods = math.ceil(period_count * completeness_threshold)
+
         if periods_with_data < required_periods:
             self.result_tracker.add_missing()
             logging.debug(f"Not enough data for DE {de_id} in OU {ou_id}. Required: {required_periods}, found: {periods_with_data}.")
             if stage.get("missing_data_min") is not None and stage.get("missing_data_max") is not None:
                 logging.debug(f"Using configured missing data min/max for DE {de_id} in OU {ou_id}.")
-                self.result_tracker.add_imputed()
                 return MinMaxRecord(
                     dataElement=de_id,
                     organisationUnit=ou_id,
@@ -644,6 +632,23 @@ class MinMaxFactory:
             generated=False,
             comment=comment
         )
+
+    @staticmethod
+    def _adjust_values(de_id, ou_id, values):
+        # Filter out non-numeric values
+        values = [v for v in values if isinstance(v, (int, float))]
+        # Adjust numbers to be positive, as min/max values are always positive
+        min_value = min(values)
+        # Arbitrary small epsilon to avoid zero values which will lead to problems with Box/Cox
+        epsilon = 1e-3
+        if min_value <= 0:
+            min_value_offset = abs(min_value) + epsilon
+            values = [v + min_value_offset for v in values]
+            logging.info(f"Adjusted values for DE {de_id} in OU {ou_id} to be positive: {values}")
+        else:
+            min_value_offset = 0
+        periods_with_data = len(values)
+        return min_value_offset, periods_with_data, values
 
     @staticmethod
     def build_minmax_csv_dataframe(raw_values: List[dict], minmax_list: List[dict]) -> pd.DataFrame:

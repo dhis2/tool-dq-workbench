@@ -42,12 +42,6 @@
                value="{{ stage.previous_periods or 24 }}" required>
     </div>
     <div class="mb-3">
-        <label class="form-label" for="duration">Duration (e.g. 12 months)</label>
-        <input class="form-control" id="duration" name="duration" value="{{ stage.duration or '12 months' }}" required>
-    </div>
-
-
-    <div class="mb-3">
         <label class="form-label" for="datasets">Datasets (comma separated UIDs)</label>
         <input class="form-control" id="datasets" name="datasets" type="text"
                value="{{ stage.datasets | join(',') if stage.datasets else '' }}" placeholder="e.g. uid1,uid2,uid3">

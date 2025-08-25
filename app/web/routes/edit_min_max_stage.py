@@ -34,7 +34,6 @@ def minmax_stage_view(stage_index=None):
         stage['missing_data_max'] = int(request.form.get('missing_data_max', ""))
         stage['completeness_threshold'] = float(request.form.get('completeness_threshold', 0.1))
         stage['active'] = request.form.get('active', 'off') == 'on'
-        stage['duration'] = request.form.get('duration') or '12 months'
         stage['datasets'] = [d.strip() for d in request.form.get('datasets', '').split(',') if d.strip()]
         stage['data_element_groups'] = [d.strip() for d in request.form.get('data_element_groups', '').split(',') if d.strip()]
         stage['data_elements'] = [d.strip() for d in request.form.get('data_elements', '').split(',') if d.strip()]

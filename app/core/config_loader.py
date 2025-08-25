@@ -237,7 +237,7 @@ class ConfigManager:
         # Required keys (now includes 'datasets')
         required = [
             'name', 'org_units', 'previous_periods',
-            'duration', 'completeness_threshold', 'groups', 'datasets'
+            'completeness_threshold', 'groups', 'datasets'
         ]
         missing = [k for k in required if k not in stage]
         if missing:
@@ -267,6 +267,5 @@ class ConfigManager:
         if org_units is None:
             raise ValueError(f"Organisation units must be specified in min_max_stage '{name}'")
         self._validate_org_units_exist(org_units)
-        self._is_valid_duration(stage.get('duration'), name)
 
 
