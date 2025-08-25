@@ -106,7 +106,6 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             async with session.get(url) as response:
                 if response.status == 200:
                    response = await response.json()
-                   print(response)
                    return response
                 else:
                     raise requests.exceptions.RequestException(f"Failed to poll running summaries: {response.status}")
@@ -166,7 +165,6 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             data_value = self.transform_integrity_check_to_data_value(v, data_element_uid, current_period, orgunit)
             if data_value is not None:
                 data_values.append(data_value)
-        #Return the data values
         return data_values
 
 
