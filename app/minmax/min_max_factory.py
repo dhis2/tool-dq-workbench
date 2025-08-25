@@ -550,15 +550,28 @@ class MinMaxFactory:
         if periods_with_data < required_periods:
             self.result_tracker.add_missing()
             logging.debug(f"Not enough data for DE {de_id} in OU {ou_id}. Required: {required_periods}, found: {periods_with_data}.")
-            return MinMaxRecord(
-                dataElement=de_id,
-                organisationUnit=ou_id,
-                optionCombo=coc_id,
-                min=None,
-                max=None,
-                generated=True,
-                comment="Not enough data"
-            )
+            if stage.get("missing_data_min") is not None and stage.get("missing_data_max") is not None:
+                logging.debug(f"Using configured missing data min/max for DE {de_id} in OU {ou_id}.")
+                self.result_tracker.add_imputed()
+                return MinMaxRecord(
+                    dataElement=de_id,
+                    organisationUnit=ou_id,
+                    optionCombo=coc_id,
+                    min=stage.get("missing_data_min"),
+                    max=stage.get("missing_data_max"),
+                    generated=True,
+                    comment="Configured missing data min/max"
+                )
+            else:
+                return MinMaxRecord(
+                    dataElement=de_id,
+                    organisationUnit=ou_id,
+                    optionCombo=coc_id,
+                    min=None,
+                    max=None,
+                    generated=True,
+                    comment="Not enough data and no missing data min/max configured"
+                )
 
         self.result_tracker.add_valid()
         median_val = statistics.median(values)

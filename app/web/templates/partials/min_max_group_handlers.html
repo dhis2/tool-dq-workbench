@@ -1,7 +1,14 @@
 <script>
 (function () {
+  const cfg = JSON.parse(document.getElementById('minmax-config').textContent);
   const groupsDiv = document.getElementById('groups');
   const addBtn = document.getElementById('addGroup');
+
+  function renderMethodOptions(selected) {
+    return cfg.methods
+      .map(v => `<option value="${v}" ${v === selected ? 'selected' : ''}>${cfg.labels[v] || v}</option>`)
+      .join('');
+  }
 
   // Helper: show/hide constant fields
   function toggleConstantFields(groupEl) {
@@ -24,9 +31,7 @@
 
       <label class="form-label mt-2" for="groups-${index}-method">Method</label>
       <select class="form-select" id="groups-${index}-method" name="groups-${index}-method" required>
-        <option value="PREV_MAX">PREV_MAX</option>
-        <option value="BOXCOX">BOXCOX</option>
-        <option value="CONSTANT">Constant values</option>
+        ${renderMethodOptions()}
       </select>
 
       <label class="form-label mt-2" for="groups-${index}-threshold">Threshold</label>
@@ -59,7 +64,15 @@
     }
   });
 
-  // Initialize all existing groups
-  groupsDiv.querySelectorAll('.group-entry').forEach(toggleConstantFields);
+  // Initialize all existing groups (also make sure their <select> have the right labels if server-rendered)
+  groupsDiv.querySelectorAll('.group-entry').forEach(group => {
+    const select = group.querySelector('select[id$="-method"]');
+    if (select && !select.options.length) {
+      // If the server didn't render options, fill them now, keeping any pre-set value
+      const current = select.value;
+      select.innerHTML = renderMethodOptions(current);
+    }
+    toggleConstantFields(group);
+  });
 })();
 </script>
