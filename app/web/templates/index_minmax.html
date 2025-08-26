@@ -26,7 +26,7 @@
         <td class="text-end">
             <form method="POST"
                   action="{{ url_for('api.minmax_analysis', stage_index=loop.index0) }}"
-                  class="d-inline"> {# no .run-stage-form #}
+                  class="analyze-form d-inline"> {# no .run-stage-form #}
                 <button type="submit" class="btn btn-sm btn-outline-success me-1">Analyze</button>
             </form>
             <form method="POST" action="{{ url_for('api.run_min_max_stage', stage_index=loop.index0) }}"
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const runSummary = document.getElementById('run-summary');
 
   // Handle ANALYZE: fetch the CSV, trigger download, then re-enable the button
-  document.querySelectorAll('form:not(.run-stage-form)').forEach(form => {
+  document.querySelectorAll('form.analyze-form').forEach(form => {
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const btn = event.submitter;
