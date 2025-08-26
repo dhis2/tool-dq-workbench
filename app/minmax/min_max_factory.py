@@ -2,6 +2,7 @@ import asyncio
 import logging
 import math
 import random
+import secrets
 import statistics
 from collections import defaultdict
 from typing import List, Iterable
@@ -43,6 +44,11 @@ class MinMaxFactory:
         """
         prepared_stages = self.prepare_stage(stage)
         all_responses = []
+        #Check the user can even upload min/max values
+        user_can_upload = self._check_can_upload_minmax()
+        if not user_can_upload:
+            raise PermissionError("User does not have permission to upload min/max values. Please check the user permissions.")
+
         for prepared_stage in prepared_stages:
             data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
             grouped_values = self.group_data_for_dataset(data_values)
@@ -216,7 +222,7 @@ class MinMaxFactory:
                         # Retry on transient/rate-limit statuses
                         text = await response.text()
                         if response.status in RETRYABLE_STATUSES and attempt < max_retries:
-                            delay = backoff_base * (2 ** (attempt - 1)) + random.random() * 0.2
+                            delay = backoff_base * (2 ** (attempt - 1)) + secrets.randbelow(1000) / 1000.0 * 0.2
                             logging.warning(
                                 f"Chunk {index} got {response.status}. Retrying in {delay:.2f}s… Body: {text[:300]}")
                             await asyncio.sleep(delay)
@@ -227,16 +233,18 @@ class MinMaxFactory:
                             f"Chunk {index} failed: {response.status} - {text[:500]}"
                         )
 
-            except (asyncio.TimeoutError, Exception) as e:
+            except Exception as e:
                 # Network/timeout — retry if we have attempts left
                 if isinstance(e, RequestException) and attempt >= max_retries:
                     logging.error(str(e))
                     raise
                 if not isinstance(e, RequestException) and attempt < max_retries:
-                    delay = backoff_base * (2 ** (attempt - 1)) + random.random() * 0.2
+
+                    delay = backoff_base * (2 ** (attempt - 1)) + secrets.randbelow(1000) / 1000.0 * 0.2
                     logging.warning(f"Chunk {index} error: {e}. Retrying in {delay:.2f}s…")
                     await asyncio.sleep(delay)
                     continue
+                    return None
                 # Exhausted retries
                 logging.error(f"Chunk {index} failed after {attempt} attempts: {e}")
                 raise
@@ -716,9 +724,11 @@ class MinMaxFactory:
 
         # --- Join and order columns ---
         out = wide.merge(mm, on=["organisationUnit", "dataElement", "optionCombo"], how="left", validate="many_to_many")
+        #Drop the active column if it exists
+        if 'active' in out.columns:
+            out = out.drop(columns=['active'])
 
-        ordered_cols = ["organisationUnit", "dataElement", "optionCombo"] + periods + ["min", "max", "comment",
-                                                                                       "active"]
+        ordered_cols = ["organisationUnit", "dataElement", "optionCombo"] + periods + ["min", "max", "comment"]
         # Add any periods that weren't in the pivot (if none present)
         for col in ordered_cols:
             if col not in out.columns:
@@ -796,6 +806,21 @@ class MinMaxFactory:
         imputed_results.extend(min_max_results)
         logging.info(f"Imputed {len(imputed_results) - len(min_max_results)} missing min/max values.")
         return imputed_results
+
+    def _check_can_upload_minmax(self):
+        """
+        Check if the server supports min/max uploads.
+        """
+        try:
+            permitted_auths = ['F_MIN_MAX_ADD', 'ALL']
+            me = self.api_utils.fetch_me()
+            if not any(auth in me.get('authorities', []) for auth in permitted_auths):
+                logging.error("User does not have permission to add min/max values.")
+                return False
+            return True
+        except Exception as e:
+            logging.error(f"Error checking user permissions: {e}")
+            return False
 
 
 

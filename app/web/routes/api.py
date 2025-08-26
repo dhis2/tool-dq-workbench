@@ -1,8 +1,5 @@
 import logging
 
-import yaml
-
-from app.web.utils.config_helpers import load_config
 from flask import Blueprint, current_app, request, jsonify
 from app.core.api_utils import Dhis2ApiUtils
 from app.core.config_loader import ConfigManager

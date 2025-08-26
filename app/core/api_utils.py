@@ -24,6 +24,8 @@ class Dhis2ApiUtils:
             response.raise_for_status()
             return await response.json()
 
+
+
     def post_metadata(self, metadata):
         """
         Post metadata to the DHIS2 API.
@@ -174,6 +176,12 @@ class Dhis2ApiUtils:
     def fetch_category_option_combo_by_id(self, uid):
         resp = self.fetch_metadata_list('categoryOptionCombos', 'categoryOptionCombos', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
         return resp[0] if resp else None
+
+    def fetch_me(self):
+        url = f"{self.base_url.rstrip('/')}/api/me"
+        response = requests.get(url, headers=self.request_headers)
+        response.raise_for_status()
+        return response.json()
 
     def ping(self):
         try:

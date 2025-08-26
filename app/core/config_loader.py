@@ -29,6 +29,16 @@ class ConfigManager:
         if validate_runtime:
             self._validate_runtime(self.config)
 
+
+    def save (self, config_path):
+        try:
+            self.validate_structure(self.config)
+        except ValueError as e:
+            logging.error(f"Failed to validate config before saving: {e}")
+            raise ValueError(f"Configuration validation failed: {e}")
+        with open(config_path, 'w') as f:
+            yaml.dump(self.config, f)
+
     @classmethod
     def _validate_runtime(cls, config):
         # Check base_url format
