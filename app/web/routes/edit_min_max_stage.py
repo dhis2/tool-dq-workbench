@@ -38,6 +38,8 @@ def minmax_stage_view(stage_index=None):
         stage['data_element_groups'] = [d.strip() for d in request.form.get('data_element_groups', '').split(',') if d.strip()]
         stage['data_elements'] = [d.strip() for d in request.form.get('data_elements', '').split(',') if d.strip()]
         stage['org_units'] = [o.strip() for o in request.form.get('org_units', '').split(',') if o.strip()]
+        stage['use_dataset_orgunits'] = request.form.get('use_dataset_orgunits', 'off') == 'on'
+        stage['org_unit_groups'] = [o.strip() for o in request.form.get('org_unit_groups', '').split(',') if o.strip()]
         stage['groups'] = []
 
         process_min_max_groups(stage)
@@ -102,8 +104,14 @@ def default_minmax_stage():
         'uid': UidUtils.generate_uid(),
         'completeness_threshold': 0.1,
         'active': True,
-        'groups': [{'limitmedian': '', 'method': '', 'threshold': ''}],
+        'missing_data_min': 0,
+        'missing_data_max': 1000,
+        'groups': [{'limitMedian': '20', 'method': 'PREV_MAX', 'threshold': '1.5'},
+                   {'limitMedian': '100', 'method': 'MAD', 'threshold': '2'},
+                   {'limitMedian': '1000000', 'method': 'BOX_COX', 'threshold': '3'}],
         'org_units': [],
+        'org_unit_groups': [],
+        'use_dataset_orgunits': False,
         'previous_periods': 12
     }
 

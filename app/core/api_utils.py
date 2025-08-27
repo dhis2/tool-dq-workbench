@@ -83,9 +83,9 @@ class Dhis2ApiUtils:
                 raise requests.exceptions.RequestException(f"Failed to fetch data value sets: {response.status}")
             return await response.json()
 
-    async def create_and_post_data_value_set(self, validation_rule_values, session):
+    async def create_and_post_data_value_set(self, data_values, session):
         datavalue_set = {
-            'dataValues': validation_rule_values
+            'dataValues': data_values
         }
         url = f'{self.base_url}/api/dataValueSets'
         async with session.post(url, json=datavalue_set) as response:
@@ -153,12 +153,18 @@ class Dhis2ApiUtils:
     def fetch_data_element_groups(self, filters=None, fields=None, extra_params=None):
         return self.fetch_metadata_list('dataElementGroups', 'dataElementGroups', filters, fields, extra_params)
 
+    def fetch_organisation_unit_groups(self, filters=None, fields=None, extra_params=None):
+        return self.fetch_metadata_list('organisationUnitGroups', 'organisationUnitGroups', filters, fields, extra_params)
+
     def fetch_data_element_by_id(self, uid):
         resp = self.fetch_metadata_list('dataElements', 'dataElements', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
         return  resp[0] if resp else None
 
     def fetch_organisation_unit_by_id(self, uid):
         resp = self.fetch_metadata_list('organisationUnits', 'organisationUnits', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        return resp[0] if resp else None
+    def fetch_organisation_unit_group_by_id(self, uid):
+        resp = self.fetch_metadata_list('organisationUnitGroups', 'organisationUnitGroups', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
         return resp[0] if resp else None
 
     def fetch_data_element_group_by_id(self, uid):

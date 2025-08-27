@@ -35,6 +35,13 @@ def analyze_min_max_stage(stage_index):
                     return await min_max_factory.analyze_stage(stage, session, semaphore)
 
         df = asyncio.run(run())
+        #Only proceed if there actually is data in the data frame
+        if df is None or df.empty:
+            return jsonify({
+                "success": False,
+                "errors": ["No data returned from analysis. "]
+            }), 500
+
         buf = StringIO()
         df.to_csv(buf, index=False)
         csv_bytes = buf.getvalue()

@@ -65,7 +65,7 @@ class OutlierAnalyzer(StageAnalyzer):
                     logging.warning(msg)
                     errors.append(msg)
             return {
-                'data_values': results,
+                'dataValues': results,
                 'errors': errors
             }
 

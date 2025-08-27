@@ -375,6 +375,7 @@ class MinMaxFactory:
         prepared_stages = []
 
         filtered_data_elements = self._resolve_filtered_data_elements(stage)
+        orgunit_group_members = self._resolve_orgunit_group_members(stage)
 
         datasets = stage.get('datasets', [])
 
@@ -404,6 +405,9 @@ class MinMaxFactory:
                 'start_date': self.period_utils.get_start_date_from_period(periods[0]),
                 'end_date': self.period_utils.get_end_date_from_period(periods[-1]),
                 'org_units': stage.get('org_units'),
+                'use_dataset_orgunits': stage.get('use_dataset_orgunits', False),
+                'org_unit_groups': stage.get('org_unit_groups', []),
+                'orgunit_group_members': orgunit_group_members,
                 'filtered_data_elements': filtered_data_elements,
                 'completeness_threshold': stage.get('completeness_threshold',
                                                     self.config.get("completeness_threshold", 0.1)),
@@ -482,9 +486,14 @@ class MinMaxFactory:
 
     async def get_stage_data_values(self, prepared_stage, session, semaphore):
 
+        if prepared_stage.get('orgunit_group_members'):
+            org_units = prepared_stage.get('orgunit_group_members', [])
+        else:
+            org_units = prepared_stage.get('org_units', [])
+
         tasks = [
-            self.fetch_datavalues_for_orgunit(prepared_stage, org_unit, session, semaphore)
-            for org_unit in prepared_stage['org_units']
+            self.fetch_datavalues_for_orgunit(prepared_stage, ou, session, semaphore)
+            for ou in org_units
         ]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -670,7 +679,7 @@ class MinMaxFactory:
         min_value = min(values)
         # Arbitrary small epsilon to avoid zero values which will lead to problems with Box/Cox
         epsilon = 1e-3
-        if min_value <= 0:
+        if min_value < 0:
             min_value_offset = abs(min_value) + epsilon
             values = [v + min_value_offset for v in values]
             logging.info(f"Adjusted values for DE {de_id} in OU {ou_id} to be positive: {values}")
@@ -747,11 +756,15 @@ class MinMaxFactory:
         prepared_stages = self.prepare_stage(stage)
         for prepared_stage in prepared_stages:
             data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
-            grouped_values = self.group_data_for_dataset(data_values)
-            min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
-            df = self.build_minmax_csv_dataframe(data_values, min_max_results)
+            if data_values:
+                logging.info(f"Fetched {len(data_values)} data values for analysis.")
+                grouped_values = self.group_data_for_dataset(data_values)
+                min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
+                return self.build_minmax_csv_dataframe(data_values, min_max_results)
+            else:
+                logging.info("No data values fetched for analysis.")
+                df = pd.DataFrame()
 
-        return df
 
     def impute_missing_minmmax_values(self, prepared_stage, min_max_results):
         """
@@ -821,6 +834,30 @@ class MinMaxFactory:
         except Exception as e:
             logging.error(f"Error checking user permissions: {e}")
             return False
+
+    def _resolve_orgunit_group_members(self, stage):
+        if not stage.get('org_unit_groups'):
+            return []
+        else:
+            #These maybe comma separated strings
+            group_ids = []
+            for og in stage.get('org_unit_groups'):
+                group_ids.extend([g.strip() for g in og.split(',') if g.strip()])
+            if not group_ids:
+                return []
+            else:
+                #Loop over each group and get the ids of each orgunit
+                members = set()
+
+                for group_id in group_ids:
+                    group_metadata = self.api_utils.fetch_organisation_unit_groups(
+                        fields=["id","name","organisationUnits[id]"] ,
+                        filters=[f'id:eq:{group_id}']
+                    )
+                    for ou in group_metadata[0].get('organisationUnits', []):
+                        members.add(ou['id'])
+                return list(members)
+
 
 
 

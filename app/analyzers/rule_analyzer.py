@@ -46,7 +46,7 @@ class ValidationRuleAnalyzer(StageAnalyzer):
                 errors.append(msg)
 
         return {
-            'data_values': results,
+            'dataValues': results,
             'errors': errors
         }
 

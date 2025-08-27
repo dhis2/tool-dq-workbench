@@ -63,6 +63,16 @@
                value="{{ stage.org_units | join(',') if stage.org_units else '' }}" placeholder="e.g. ouid1,ouid2">
     </div>
 
+    <div class="mb-3">
+        <label class="form-label" for="org_unit_groups">Org Unit Groups (comma separated UIDs)</label>
+        <input class="form-control" id="org_unit_groups" name="org_unit_groups" type="text"
+               value="{{ stage.org_unit_groups | join(',') if stage.org_unit_groups else '' }}" placeholder="e.g. oug1,oug2">
+
+    <div class="mb-3">
+        <label class="form-label" for="use_dataset_orgunits">Use dataset orgunits?</label>
+        <input class="form-check-input" type="checkbox" id="use_dataset_orgunits" name="use_dataset_orgunits" {% if stage.use_dataset_orgunits %}checked{% endif %}>
+    </div>
+
     <h5>Groups</h5>
 <script id="minmax-config" type="application/json">
   {{ {'methods': minmax_methods, 'labels': minmax_labels} | tojson }}

@@ -82,7 +82,7 @@ class DataQualityMonitor:
                     logging.error(f"Task failed with exception: {result}")
                     errors.append(f"{name}: {str(result)}")
                 elif isinstance(result, dict):
-                    all_data_values.extend(result.get("data_values", []))
+                    all_data_values.extend(result.get("dataValues", []))
                     errors.extend(result.get("errors", []))
                 else:
                     msg = f"Unexpected result type from stage '{name}': {type(result)}"

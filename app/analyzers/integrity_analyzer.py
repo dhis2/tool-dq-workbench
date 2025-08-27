@@ -43,7 +43,7 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             results = await self._fetch_summary_results_async(session, stage, semaphore)
             data_values =  self.process_results(results, stage)
             return {
-                'data_values': data_values,
+                'dataValues': data_values,
                 'errors': []
             }
 
