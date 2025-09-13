@@ -140,6 +140,20 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
     def transform_integrity_check_to_data_value(result, dataelement_uid, period, orgunit):
         if result is None:
             return None
+        #Attempt to parse to integer
+        value = result["count"]
+        if value is None or value == "":
+            logging.warning(f"Result was blank for {dataelement_uid} ")
+            return None
+        try:
+            value_int = int(value)
+            if value_int < 0:
+                logging.error(f"Value: {value}) is less than 0 for {dataelement_uid}")
+                return None
+        except ValueError:
+            logging.error(f"Failed to convert {value} to int: {value} for {dataelement_uid}")
+            return None
+
         data = {
             "dataElement": dataelement_uid,
             "period": period,

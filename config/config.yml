@@ -1,32 +1,6 @@
 server:
-  base_url: https://play.im.dhis2.org/stable-2-42-1
-  d2_token: d2p_SgkHYDICP2zV8jCtT01i5LVgmS0r8BlZmNZzGVpXJxgN0YCodL
+  base_url: https://play.im.dhis2.org/dev-2-42
+  d2_token: d2p_SuperSecretToken
   logging_level: INFO
   max_concurrent_requests: 5
   max_results: 500
-min_max_stages:
- - name: Generate min-max for morbidity
-   datasets:
-      - QX4ZTUbOt3a
-   org_units: [ImspTQPwCqd]
-   previous_periods: 36
-   completeness_threshold: 0.1
-   groups:
-     - limitMedian: 10
-       method: PREV_MAX
-       threshold: 1.25
-     - limitMedian: 50
-       method: BOXCOX
-       threshold: 3
-     - limitMedian: 99999
-       method: BOXCOX
-       threshold: 4
-analyzer_stages:
-- duration: 16 weeks
-  level: 2
-  name: Anti Retroviral Therapy Returns
-  params:
-    destination_data_element: x1H70U9MVmX
-    period_type: Monthly
-    validation_rule_group: s26nobLp9j7
-  type: validation_rules

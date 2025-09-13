@@ -124,11 +124,11 @@ def _build_de_payload(check):
     display_name = str(check.get('displayName', '') or '')
     return {
         "name": f"[MI] {display_name}",
-        "shortName": f"MI {code[:40]}",  # DHIS2 shortName max 50 chars
+        "shortName": f"[MI] {display_name[:40]}",  # DHIS2 shortName max 50 chars
         "code": f"MI_{code}",
-        "valueType": "INTEGER_ZERO_OR_POSITIVE",
+        "valueType": "INTEGER",
         "domainType": "AGGREGATE",
-        "aggregationType": "NONE",
+        "aggregationType": "LAST_VALUE",
         "zeroIsSignificant": True,
     }
 
