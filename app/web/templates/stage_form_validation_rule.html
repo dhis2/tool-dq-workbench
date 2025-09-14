@@ -40,17 +40,6 @@
             {% endif %}
         </select>
     </div>
-
-    <div class="mb-3">
-        <label class="form-label" for="period_type">Period Type</label>
-        <select class="form-select" id="period_type" name="period_type" required>
-            {% for pt in period_types %}
-            <option value="{{ pt }}" {% if stage.params.period_type== pt %}selected{% endif %}>
-                {{ pt.title() }}
-            </option>
-            {% endfor %}
-        </select>
-    </div>
     <div class="mb-3">
         <label class="form-label" for="destination_data_element">Destination Data Element</label>
         <select id="destination_data_element" name="destination_data_element" placeholder="Search..."

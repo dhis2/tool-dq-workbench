@@ -30,7 +30,6 @@ def validation_rule_stage_view(stage_index=None):
                 'level': 1,
                 'duration': '12 months',
                 'validation_rule_group': '',
-                'period_type': '',
                 'destination_data_element': ''
             },
             'active': True
@@ -70,7 +69,6 @@ def validation_rule_stage_view(stage_index=None):
         stage['params']['level'] = int(request.form['orgunit_level'])
         stage['params']['duration'] = request.form['duration']
         stage['params']['validation_rule_group'] = request.form['validation_rule_group']
-        stage['params']['period_type'] = request.form['period_type']
         stage['params']['destination_data_element'] = request.form['destination_data_element']
         stage['uid'] = request.form.get('uid', '').strip() or UidUtils.generate_uid()
         stage['active'] = request.form.get('active', 'off') == 'on'
@@ -91,6 +89,5 @@ def validation_rule_stage_view(stage_index=None):
         stage=deepcopy(stage),
         edit=is_edit,
         data_element_name=data_element_name,
-        validation_rule_group_name=validation_rule_group_name,
-        period_types=PeriodType.values()
+        validation_rule_group_name=validation_rule_group_name
     )

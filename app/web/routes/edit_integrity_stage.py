@@ -128,7 +128,7 @@ def _build_de_payload(check):
         "code": f"MI_{code}",
         "valueType": "INTEGER",
         "domainType": "AGGREGATE",
-        "aggregationType": "LAST_VALUE",
+        "aggregationType": "LAST",
         "zeroIsSignificant": True,
     }
 
