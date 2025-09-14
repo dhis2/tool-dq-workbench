@@ -25,3 +25,10 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'alabaster'
 html_static_path = ['_static']
+
+# -- Options for LaTeX/PDF output -------------------------------------------
+# Improve code-block rendering in PDFs by enabling line wrapping for verbatim.
+latex_elements = {
+    # Wrap long lines in verbatim/code blocks to avoid overflow
+    'sphinxsetup': 'verbatimwrapslines=true, verbatimforcewraps=true, verbatimmaxoverfull=0',
+}

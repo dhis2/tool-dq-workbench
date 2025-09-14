@@ -67,11 +67,12 @@ integrity stage form. This will create a data element for each of the
 integrity checks that are included in the integrity stage.
 
 .. important::
-When the new data elements are created, they will not automatically
-be assigned to the data element group that you have defined in the
-integrity stage form. You will need to manually assign the data elements
-to the data element group in order for them to be included in the
-integrity stage.
+
+   When the new data elements are created, they will not automatically
+   be assigned to the data element group that you have defined in the
+   integrity stage form. You will need to manually assign the data elements
+   to the data element group in order for them to be included in the
+   integrity stage.
 
 Note that all data elements used to store integrity check values will follow
 the naming convention ``[MI] - <check name>``.

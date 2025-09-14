@@ -36,3 +36,7 @@ app/web/__pycache__/
 app/**/__pycache__/
 tests/__pycache__/
 
+#Document build artifacts
+docs/_build/
+docs/**/_build/
+
