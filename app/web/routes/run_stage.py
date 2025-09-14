@@ -4,7 +4,7 @@ from copy import deepcopy
 from flask import current_app, jsonify
 
 from app.core.config_loader import ConfigManager
-from app.runner import DataQualityMonitor
+from app.cli import DataQualityMonitor
 from app.web.routes.api import api_bp
 
 

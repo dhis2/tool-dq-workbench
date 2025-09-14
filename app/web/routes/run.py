@@ -3,7 +3,7 @@ import asyncio
 from flask import Blueprint, current_app, render_template, flash, jsonify, redirect, url_for
 
 from app.core.config_loader import ConfigManager
-from app.runner import DataQualityMonitor
+from app.cli import DataQualityMonitor
 from app.web.routes.api import api_bp
 
 

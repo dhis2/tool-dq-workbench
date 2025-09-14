@@ -45,7 +45,8 @@ def api_data_elements():
 @api_bp.route('/datasets')
 def api_datasets():
     path = current_app.config['CONFIG_PATH']
-    config = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
+    cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
+    config = cm.config
     utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']
@@ -63,7 +64,8 @@ def api_datasets():
 @api_bp.route('/validation-rule-groups')
 def api_validation_rule_groups():
     path = current_app.config['CONFIG_PATH']
-    config = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False).config
+    cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
+    config = cm.config
     utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']
@@ -81,7 +83,8 @@ def api_validation_rule_groups():
 @api_bp.route('/data-element-groups')
 def api_data_element_groups():
     path = current_app.config['CONFIG_PATH']
-    config = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False).config
+    cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
+    config = cm.config
     utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
         d2_token=config['server']['d2_token']

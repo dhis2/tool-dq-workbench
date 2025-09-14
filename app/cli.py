@@ -3,6 +3,7 @@ import asyncio
 import logging
 import sys
 from datetime import datetime
+import os
 
 import aiohttp
 
@@ -37,13 +38,20 @@ class DataQualityMonitor:
         log_file = config['server'].get("log_file", "dq_monitor.log")
         log_level = config['server'].get("logging_level", "INFO").upper()
 
+        # Ensure log directory exists if a path is provided
+        log_dir = os.path.dirname(log_file)
+        if log_dir:
+            os.makedirs(log_dir, exist_ok=True)
+
+        # Force reconfiguration so logs appear even if something configured logging earlier
         logging.basicConfig(
             level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(log_file),
-                logging.StreamHandler(sys.stdout)  # This adds stdout output
-            ]
+                logging.StreamHandler(sys.stdout)
+            ],
+            force=True,
         )
 
     async def run_stage(self, session, stage, semaphore):
@@ -111,15 +119,26 @@ class DataQualityMonitor:
 
 
 def run_main():
-    parser = argparse.ArgumentParser(description='Monitor validation rules')
-    parser.add_argument('--config', help='Path to configuration file')
+    parser = argparse.ArgumentParser(description='Run DQ Workbench stages from a configuration file')
+    parser.add_argument('--config', required=True, help='Path to configuration file')
+    parser.add_argument('--log-level', help='Override logging level (DEBUG, INFO, WARNING, ERROR)')
+    parser.add_argument('--log-file', help='Override log file path')
     args = parser.parse_args()
 
-    config_manager = ConfigManager(args.config)
+    # Load and validate configuration
+    config_manager = ConfigManager(config_path=args.config, config=None, validate_structure=True, validate_runtime=True)
     if not config_manager.config:
         logging.error("Failed to load configuration.")
         sys.exit(1)
-    monitor = DataQualityMonitor(config_manager.config)
+    config = config_manager.config
+
+    # Apply CLI overrides for logging without editing the file
+    if args.log_level:
+        config.setdefault('server', {})['logging_level'] = args.log_level
+    if args.log_file:
+        config.setdefault('server', {})['log_file'] = args.log_file
+
+    monitor = DataQualityMonitor(config)
     asyncio.run(monitor.run_all_stages())
 
 if __name__ == '__main__':

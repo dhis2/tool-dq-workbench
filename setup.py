@@ -18,7 +18,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'dq-monitor=app.runner:run_main'
+            'dq-monitor=app.cli:run_main'
         ],
         'web_ui': [
             'dq-monitor-web=app.web.app'
