@@ -31,6 +31,10 @@ The form consists of the following fields:
    results returned), but this will also increase the time it takes to
    run the validation rule analysis.
 
+Note that the count of validation rules will be based on the period of the validation rule
+violation itself. Thus you should carefully consider how you construct your validation
+rule groups, and not mix data elements which are collected in different period types.
+
 ``Duration``
    The duration of the validation rule stage. This is used to determine
    the start and end dates of the validation rule analysis relative to
@@ -42,17 +46,6 @@ The form consists of the following fields:
    The validation rule group to use for the validation rule analysis. All
    validation rules in the group will be used to determine the number of
    validation rule violations.
-
-``Period type``
-   The period type to store the validation rule violations in. As an
-   example, if you choose ``Monthly``, the validation rule counts will be
-   stored in the current month. If you run the stage on a nightly basis,
-   this will have the effect of overwriting the current value each day.
-   However, if you choose ``Daily``, the validation rule counts will be
-   stored in the current day. If you schedule the stage to run on a daily
-   basis, this will result in a new value being stored each day, allowing
-   you to track the number of validation rule violations over time on a
-   more granular level than the monthly period type.
 
 ``Destination data element``
    The data element used to store the number of validation rule

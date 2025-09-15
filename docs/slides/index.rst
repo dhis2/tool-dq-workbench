@@ -1,6 +1,12 @@
 DQ Workbench — Feature highlights
 ============================================
 
+Motivation
+============================
+- Store (meta)data quality metrics as DHIS2 values
+- Enable tracking of data quality over time
+- Facilitate data quality improvement actions
+- Extend DHIS2 core capabilities
 
 Overview
 ========
@@ -17,9 +23,8 @@ Layers
 ------
 - Web UI: Configure stages and run jobs
 - Analyzer stages: Validation rules, Outliers, Integrity checks
-- CLI/Scheduler: Automate daily runs of stages
+- CLI: Automate daily runs of stages (scheduling with cron/systemd)
 - DHIS2 storage: Writes metrics to data elements
-
 
 Server configuration
 ============================
@@ -28,7 +33,7 @@ Setting up the server
 ----------------------------
 - Supports authentication via API token (only)
 - Configurable concurrency. Adjust to fit your DHIS2 server capacity
-- You may need to update the `maxDataQualityResults` setting on your DHIS2 instance to match the `max_results` setting in the configuration file
+-  Adjust `max_results` to match your servers `maxDataQualityResults` setting
 
 Server config (UI)
 --------------------
@@ -51,7 +56,7 @@ Monitoring
 ===========
 
 Validation Rules
-----------------
+-----------------
 - Maps a count of  validation rule violations for selected groups over a time window
 - Stores a single value per org unit and period
 - Aggregate counts of violations in a validation rule group to a data element
@@ -65,7 +70,6 @@ Outliers
 Running an outlier stage
 ----------------------------
 
-
 .. image:: ../_static/screenshots/outlier_stage_success.png
    :alt: Outlier stage run
    :class: r-stretch
@@ -76,13 +80,20 @@ Integrity Checks
 - Enables tracking of (meta)data integrity over time
 - Support for various period types (Monthly, Weekly, Daily)
 
+
+Create integrity stage
+------------------------
+.. image:: ../_static/screenshots/create_integrity_stage.png
+   :alt: Integrity checks configuration
+   :class: r-stretch
+
 Min-max Generation
 ==================
 
 Min-max Overview
 --------------------
 - Generates min-max ranges from historical data
-- Reduces false positives in outlier detection
+- Utilizes new bulk import API
 - Configurable lookback period and org unit group
 - Configurable organisation unit levels to optimize data retrieval
 - Asynchronous processing for large datasets
@@ -93,76 +104,28 @@ Min-max groups
 - The `limit median` is used to define the group
 - Each group can have its own statistical method and threshold
 
+Min-max configuration
+-------------------------
+.. image:: ../_static/screenshots/min_max_config.png
+   :alt: Min-max configuration
+   :class: r-stretch
+
+
+Min-max import
+-----------------
+.. image:: ../_static/screenshots/min_max_import.png
+   :alt: Min-max import
+   :class: r-stretch
 
 Min-max Statistical methods
----------------------------
+----------------------------
 
 - Previous max: Uses the maximum value from the lookback period
 - Z-score: Mean ± Threshold*stddev from the lookback period
 - MAD: Median ± Threshold*MAD from the lookback period
+
+Min-max Statistical methods
+-----------------------------
 - Box-Cox: Uses Box-Cox transformation for normality, then mean ± Threshold*stddev
 - IQR: Q1 - 1.5*IQR to Q3 + 1.5*IQR from the lookback period
 - Constant range: User-defined fixed min and max values
-
-
-UI Highlights
-=============
-
-Stage Table
------------
-- Shows name, type, status, and actions (Run/Edit/Delete)
-- “Run All” controls for integrity flow
-
-Run Summary
------------
-- Shows execution feedback and high‑level results
-- Quick sanity checks after stage runs
-
-Screenshots (replace with yours)
---------------------------------
-.. image:: ../_static/screenshots/stage_table.png
-   :alt: Stage table
-   :width: 80%
-
-.. image:: ../_static/screenshots/run_summary.png
-   :alt: Run summary panel
-   :width: 80%
-
-CLI & Automation
-================
-
-Scheduling
-----------
-- Non‑interactive CLI suitable for cron/systemd timers
-- Consistent configuration → comparable daily snapshots
-
-Command Example
----------------
-.. code-block:: bash
-
-   python -m app.web.app --config /path/to/config.yml
-
-DHIS2 Integration
-=================
-
-API and Analytics
------------------
-- Uses DHIS2 Web API for reads/writes
-- Stores metrics as standard data elements → works with dashboards/maps/pivots
-
-Min‑Max Generation
-==================
-
-Overview
---------
-- Utility to generate/update min‑max ranges from history
-- Complements outlier detection and reduces false positives
-
-Roadmap
-=======
-
-Future Enhancements
--------------------
-- Rich dashboards for real‑time monitoring
-- Alerts/notifications for spikes and regressions
-- Extensible rule definitions and custom checks
