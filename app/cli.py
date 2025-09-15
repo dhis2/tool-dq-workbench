@@ -70,7 +70,8 @@ class DataQualityMonitor:
 
     async def run_all_stages(self):
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-        all_data_values = []
+        upserts = []
+        deletes = []
         errors = []
 
         async with aiohttp.ClientSession(headers=self.request_headers) as session:
@@ -90,17 +91,18 @@ class DataQualityMonitor:
                     logging.error(f"Task failed with exception: {result}")
                     errors.append(f"{name}: {str(result)}")
                 elif isinstance(result, dict):
-                    all_data_values.extend(result.get("dataValues", []))
+                    upserts.extend(result.get("dataValues", []))
+                    deletes.extend(result.get("deletes", []))
                     errors.extend(result.get("errors", []))
                 else:
                     msg = f"Unexpected result type from stage '{name}': {type(result)}"
                     logging.warning(msg)
                     errors.append(msg)
 
-            logging.info(f"Posting {len(all_data_values)} data values")
+            logging.info(f"Posting {len(upserts)} data values")
             import_summary = None
             try:
-                response = await self.api_utils.create_and_post_data_value_set(all_data_values, session)
+                response = await self.api_utils.create_and_post_data_value_set(upserts, session)
                 import_summary = Dhis2ApiUtils.parse_import_summary(response)
             except Exception as post_err:
                 logging.error(f"Error posting data values: {post_err}")

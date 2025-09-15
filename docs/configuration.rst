@@ -18,6 +18,29 @@ Here is an example of the server configuration:
      max_results: 1000              # caps results per request (500–50000)
 
 
+Maximum concurrent requests
+----------------------------------
+The `max_concurrent_requests` setting controls the number of simultaneous API calls that the DQ Workbench will make to the DHIS2 instance. 
+Increasing this value can speed up processing, but
+it may also lead to rate limiting or timeouts if the DHIS2 server cannot handle the load. 
+A value between 5 and 10 is generally recommended, but you should adjust this based on your server's capabilities and performance.    
+
+
+Maximum results per request
+----------------------------------
+The `max_results` setting determines the maximum number of data quality results which can be returned from the API. In recent versions of 
+DHIS2, you can adjust this value between 500 and 50000. In general, if you are using the DQ Workbench to monitor a large number of validation rules or outliers,
+you will need to increase this value to ensure that all results are returned. However, setting this value too high may lead to performance issues or timeouts, so it is recommended to start with a lower value and increase it as needed.
+Some experimentation may be required to find the optimal value for your specific use case and server configuration. Values of 5000 or 10,000 are often a good starting point.
+
+In order to change  the server configuration, you can make a POST request to the `/api/systemSettings` endpoint with the following JSON payload:
+
+.. code-block:: json
+    {
+    "maxDataQualityResults": 10000
+   }
+
+
 Creating a dedicated user account
 ----------------------------------
 

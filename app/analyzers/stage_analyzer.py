@@ -45,3 +45,10 @@ class StageAnalyzer(ABC):
             return f"Invalid duration provided '{unit}'. Must be one of: {', '.join(TimeUnit.list())}"
 
         return None
+
+    async def fetch_datavalues_async(self, session, url, semaphore):
+        async with semaphore:
+            async with session.get(url, headers=self.headers) as response:
+                if response.status != 200:
+                    raise Exception(f"Failed to fetch data values from {url}: HTTP {response.status}")
+                return await response.json()
