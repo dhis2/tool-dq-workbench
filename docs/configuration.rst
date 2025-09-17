@@ -16,6 +16,8 @@ Here is an example of the server configuration:
      logging_level: INFO            # DEBUG | INFO | WARNING | ERROR
      max_concurrent_requests: 10    # limits simultaneous API calls
      max_results: 1000              # caps results per request (500–50000)
+     root_org_unit: ROOT_ORG_UNIT_ID  # optional, e.g. "ImspTQPwCqd"
+     default_coc: DEFAULT_COC_ID    # optional, e.g. "HllvX50cXC0"
 
 
 Maximum concurrent requests
@@ -39,6 +41,22 @@ In order to change  the server configuration, you can make a POST request to the
     {
     "maxDataQualityResults": 10000
    }
+
+Setting the root organisation unit
+----------------------------------
+The `root_org_unit` setting specifies the root organisation unit for the DQ Workbench tool.
+This setting is only relevant when your system has multiple top-level organisation units.
+If your system has a single top-level organisation unit, you can omit this setting, and the DQ Workbench will automatically use the top-level organisation unit as the root.
+However, if your system has multiple top-level organisation units, you must specify one of them as the root organisation unit.
+
+
+Setting the default category option combo
+------------------------------------------
+
+Modern versions of DHIS2 use the same UID (``HllvX50cXC0``) for the default category option combo across all instances.
+If your system has a default category option combo with a different UID (or you have multiple default COCs) you must
+specify the UID of the default category option combo to use in the `default_coc` setting.
+If you do not specify a value for this setting, the DQ Workbench will use the UID ``HllvX50cXC0`` as the default category option combo.
 
 
 Creating a dedicated user account

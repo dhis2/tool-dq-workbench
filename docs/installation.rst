@@ -69,7 +69,7 @@ or alternatively with https
 
       cp config/sample_config.yml config/my_config.yml
 
-   Open ``/home/bobbytables/dq-workbench/my_config.yml`` in a text editor and modify the settings for your environment.
+   Open ``config/my_config.yml`` in a text editor and modify the settings for your environment.
    At minimum, set ``base_url`` to point to your DHIS2 instance. The value should not include a trailing slash, for example:
 
    .. code-block:: json
