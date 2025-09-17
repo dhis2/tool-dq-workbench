@@ -219,7 +219,7 @@ class ConfigManager:
         root_ou = config['server'].get('root_orgunit')
         if not root_ou:
             #Check the server for the root orgunit. If there are multiple root orgunits, raise an error, otherwise set it
-            root_ous = api.fetch_metadata_list('organisationUnits', 'organisationUnits', filters=[f'level:eq:1'], fields=['id', 'name'])
+            root_ous = api.fetch_metadata_list('organisationUnits', 'organisationUnits', filters=['level:eq:1'], fields=['id', 'name'])
             if len(root_ous) == 0:
                 raise ValueError("No root organisation unit found in the system.")
             elif len(root_ous) > 1:
