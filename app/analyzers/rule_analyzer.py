@@ -93,7 +93,9 @@ class ValidationRuleAnalyzer(StageAnalyzer):
                 if (dv['dataElement'], dv['orgUnit'], dv['period'], dv.get('categoryOptionCombo', self.default_coc)) == deletion:
                     delete_values.append(dv)
                     break
-        return upsert_values, delete_values
+        #Return the original length of data
+        calculated_data_length = len(calculated_data_values)
+        return upsert_values, delete_values, calculated_data_length
 
 
     async def _fetch_validation_rule_analysis_async(self, session, vrg, ou, start_date, data_element, max_results,
@@ -135,6 +137,10 @@ class ValidationRuleAnalyzer(StageAnalyzer):
 
             key = (result['organisationUnitId'], result['periodId'])
             violations[key] = violations.get(key, 0) + 1
+
+        #Warn if the number of violations is exactly equal to the max_results
+        if max_results == len(response_data):
+            logging.error(f"Validation rule violations may be truncated. Consider to increase max_results")
 
         return [{
             'dataElement': data_element,
@@ -184,11 +190,12 @@ class ValidationRuleAnalyzer(StageAnalyzer):
                 errors.append(msg)
 
         existing_data_values = await self.fetch_existing_datvalues(stage, session, semaphore)
-        upserts, deletions = self.classify_data(existing_data_values, results)
+        upserts, deletions, calculated_data_length = self.classify_data(existing_data_values, results)
 
         return {
             'dataValues': upserts,
             'deletions': deletions,
+            'calculated_data_length' : calculated_data_length,
             'errors': errors
         }
 
