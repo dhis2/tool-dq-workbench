@@ -18,8 +18,12 @@ Installation Steps
 1. Clone the repository:
 
    .. code-block:: bash
+   git clone git@github.com:dhis2/tool-dq-workbench.gi
 
-      git clone git@github.com:dhis2/tool-dq-workbench.git
+or alternatively with https
+
+   .. code-block:: bash
+   git clone https://github.com/dhis2/tool-dq-workbench.git
 
 2. Navigate to the project directory:
 
@@ -63,7 +67,7 @@ Installation Steps
 
    .. code-block:: bash
 
-      cp config/sample_config.yml /home/bobbytables/dq-workbench/my_config.yml
+      cp config/sample_config.yml config/my_config.yml
 
    Open ``/home/bobbytables/dq-workbench/my_config.yml`` in a text editor and modify the settings for your environment.
    At minimum, set ``base_url`` to point to your DHIS2 instance. The value should not include a trailing slash, for example:
@@ -78,4 +82,4 @@ Installation Steps
 
    .. code-block:: bash
 
-      python -m app.web.app --config /home/bobbytables/dq-workbench/my_config.yml
+      python -m app.web.app --config config/my_config.yml
