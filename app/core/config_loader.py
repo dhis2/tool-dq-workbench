@@ -55,6 +55,7 @@ class ConfigManager:
 
         cls._validate_max_results(api_utils, config)
         cls._validate_default_coc(config)
+        cls._validate_root_orgunit(config)
 
     @classmethod
     def _validate_max_results(cls, api_utils, config):
@@ -208,6 +209,24 @@ class ConfigManager:
             base_url=self.config['server']['base_url'],
             d2_token=self.config['server']['d2_token'],
         )
+
+    @staticmethod
+    def _validate_root_orgunit(config):
+        api = Dhis2ApiUtils(
+            base_url=config['server']['base_url'],
+            d2_token=config['server']['d2_token']
+        )
+        root_ou = config['server'].get('root_orgunit')
+        if not root_ou:
+            #Check the server for the root orgunit. If there are multiple root orgunits, raise an error, otherwise set it
+            root_ous = api.fetch_metadata_list('organisationUnits', 'organisationUnits', filters=['level:eq:1'], fields=['id', 'name'])
+            if len(root_ous) == 0:
+                raise ValueError("No root organisation unit found in the system.")
+            elif len(root_ous) > 1:
+                raise ValueError("Multiple root organisation units found in the system. Please specify one in the config.")
+        else:
+            if not api.fetch_organisation_unit_by_id(root_ou):
+                raise ValueError(f"Root organisation unit '{root_ou}' does not exist in the system.")
 
     def _validate_datasets_exist(self, datasets: Sequence[str]) -> None:
         api = self._api_utils()
