@@ -16,6 +16,8 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
         #Define a period utils instance for this class
         self.api_utils = Dhis2ApiUtils(base_url, d2_token=self.d2_token)
         self.period_utils = Dhis2PeriodUtils()
+        self.config = config
+
 
     async def run_stage(self, stage, session, semaphore):
         try:
@@ -34,11 +36,15 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             #Append to the params
             stage['params']['current_period'] = current_period
             #Get the level one orgunit
-            orgunit = await  self.api_utils.get_organisation_units_at_level(1,session, semaphore)
-            #Append this to the params
-            if len(orgunit) == 0:
-                raise ValueError("No level one organisation unit found")
-            stage['params']['orgunit'] = orgunit[0]
+            if not self.config['server'].get('root_orgunit'):
+                root_orgunit = await  self.api_utils.get_organisation_units_at_level(1,session, semaphore)
+                # Append this to the params
+                if len(root_orgunit) != 1:
+                    raise ValueError("Zero or multiple level 1 orgunits found. Please specify a single root_orgunit in the config.")
+            else:
+                root_orgunit = [self.config['server'].get('root_orgunit')]
+
+            stage['params']['orgunit'] = root_orgunit[0]
 
             results = await self._fetch_summary_results_async(session, stage, semaphore)
             data_values =  self.process_results(results, stage)
