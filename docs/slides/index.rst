@@ -55,6 +55,7 @@ Configuration (YAML)
 Monitoring
 ===========
 
+
 Validation Rules
 -----------------
 - Maps a count of  validation rule violations for selected groups over a time window
@@ -74,18 +75,7 @@ Running an outlier stage
    :alt: Outlier stage run
    :class: r-stretch
 
-Integrity Checks
-----------------
-- Maps the count of integrity violations to a data element
-- Enables tracking of (meta)data integrity over time
-- Support for various period types (Monthly, Weekly, Daily)
 
-
-Create integrity stage
-------------------------
-.. image:: ../_static/screenshots/create_integrity_stage.png
-   :alt: Integrity checks configuration
-   :class: r-stretch
 
 Min-max Generation
 ==================
@@ -129,3 +119,8 @@ Min-max Statistical methods
 - Box-Cox: Uses Box-Cox transformation for normality, then mean ± Threshold*stddev
 - IQR: Q1 - 1.5*IQR to Q3 + 1.5*IQR from the lookback period
 - Constant range: User-defined fixed min and max values
+
+Roadmap??
+===========
+- Zero value analysis
+- Timelieness and completeness

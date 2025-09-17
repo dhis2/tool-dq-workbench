@@ -83,11 +83,16 @@ class Dhis2ApiUtils:
                 raise requests.exceptions.RequestException(f"Failed to fetch data value sets: {response.status}")
             return await response.json()
 
-    async def create_and_post_data_value_set(self, data_values, session):
+    async def create_and_post_data_value_set(self, data_values, session, params=None):
         datavalue_set = {
             'dataValues': data_values
         }
         url = f'{self.base_url}/api/dataValueSets'
+        if params:
+            #Any extra params to add to the URL from the params dict
+            query = '&'.join([f"{key}={value}" for key, value in params.items()])
+            url = f'{url}?{query}'
+
         async with session.post(url, json=datavalue_set) as response:
             if response.status != 200:
                 logging.error(f"Failed to post data value set: {response.status}")

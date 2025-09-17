@@ -107,8 +107,6 @@ class ConfigManager:
         if duplicates:
             raise ValueError(f"Duplicate stage names found: {', '.join(duplicates)}")
 
-
-
     def _validate_stage_params(self, stage):
         params = stage['params']
         stage_type = stage['type']
