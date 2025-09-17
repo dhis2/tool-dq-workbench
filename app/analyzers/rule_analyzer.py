@@ -66,17 +66,6 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         }
 
         to_delete = existing_set - calculated_set
-
-        deletions = [
-            {
-                'dataElement': de,
-                'orgUnit': ou,
-                'period': period,
-                'categoryOptionCombo': coc
-            }
-            for de, ou, period, coc in to_delete
-        ]
-
         upserts = calculated_set - existing_set
 
         upsert_values = []
@@ -140,7 +129,7 @@ class ValidationRuleAnalyzer(StageAnalyzer):
 
         #Warn if the number of violations is exactly equal to the max_results
         if max_results == len(response_data):
-            logging.error(f"Validation rule violations may be truncated. Consider to increase max_results")
+            logging.error("Validation rule violations may be truncated. Consider to increase max_results")
 
         return [{
             'dataElement': data_element,
