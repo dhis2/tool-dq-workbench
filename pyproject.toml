@@ -15,6 +15,7 @@ dependencies = [
   "python-dateutil>=2.9,<3.0",
   "PyYAML>=6,<7",
   "requests>=2.32,<3",
+  "gunicorn>=23,<25",
   # Runtime scientific stack
   "numpy>=1.26,<2.0",     # has wheels for py3.10–3.12+
   "scipy>=1.12,<1.16",    # avoids the nonexistent 1.16.1 pin

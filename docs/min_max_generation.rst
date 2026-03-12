@@ -89,7 +89,7 @@ described in the next section.
    For example, if the statistical method is "Standard Deviation" and the threshold is 2, then the min-max values will be calculated
    as the mean plus or minus 2 times the standard deviation.
 
-``Statistical methods```
+``Statistical methods``
 
 Previous max
     The previous max method sets the max value to the maximum value observed in the historical data window times

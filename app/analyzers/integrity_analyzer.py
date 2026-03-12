@@ -20,35 +20,35 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
     async def run_stage(self, stage, session, semaphore):
         try:
             logging.info(f"Running metadata integrity stage '{stage['name']}'")
-            #Start with grabbing the data element group
+
+            dataset = stage.get('params', {}).get('dataset')
+            if not dataset:
+                raise ValueError("Dataset must be specified in the stage params")
+
             de_group = stage.get('params', {}).get('monitoring_group')
             data_element_map = await self.fetch_data_elements_to_monitor(session, {'monitoring_group': de_group}, semaphore)
-            #Append this map to the stage params
             stage['params']['data_element_map'] = data_element_map
-            #Get the current period based on the period type on the config
+
             period_type = stage.get('params', {}).get('period_type')
             if period_type is None:
                 raise ValueError("Period type is not specified in the stage params")
             current_period = self.period_utils.get_current_period(period_type)
-            print("Current period: ", current_period)
-            #Append to the params
             stage['params']['current_period'] = current_period
-            #Get the level one orgunit
-            orgunit = await  self.api_utils.get_organisation_units_at_level(1,session, semaphore)
-            #Append this to the params
-            if len(orgunit) == 0:
+
+            orgunits = await self.api_utils.get_organisation_units_at_level(1, session, semaphore)
+            if not orgunits:
                 raise ValueError("No level one organisation unit found")
-            stage['params']['orgunit'] = orgunit[0]
+            stage['params']['orgunit'] = orgunits[0]
 
             results = await self._fetch_summary_results_async(session, stage, semaphore)
-            data_values =  self.process_results(results, stage)
+            data_value_set = self.process_results(results, stage)
             return {
-                'dataValues': data_values,
+                'dataValueSet': data_value_set,
                 'errors': []
             }
 
         except Exception as e:
-            logging.error(f"Error running outlier stage '{stage['name']}': {e}")
+            logging.error(f"Error running integrity stage '{stage['name']}': {e}")
             return []
 
     async def fetch_data_elements_to_monitor(self, session, params, semaphore):
@@ -86,10 +86,10 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
 
     async def _trigger_metadata_integrity_summaries_async(self, session, stage, semaphore):
         # POST /api/dataIntegrity/summary?checks=<name1>,<name2>
-        params = stage.get('params', {}).get("data_element_map", {}).keys()
+        check_codes = list(stage.get('params', {}).get("data_element_map", {}).keys())
         url = f'{self.base_url}/api/dataIntegrity/summary'
-        if 'checks' in params:
-            query = urlencode({'checks': ','.join(params['checks'])})
+        if check_codes:
+            query = urlencode({'checks': ','.join(check_codes)})
             url = f'{url}?{query}'
 
         async with semaphore:
@@ -137,49 +137,60 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
         return results
 
     @staticmethod
-    def transform_integrity_check_to_data_value(result, dataelement_uid, period, orgunit):
+    def transform_integrity_check_to_data_value(result, dataelement_uid):
+        """Build a single data value entry (dataElement + value only; period/orgUnit go in the payload header)."""
         if result is None:
             return None
-        #Attempt to parse to integer
-        value = result["count"]
+        value = result.get("count")
         if value is None or value == "":
-            logging.warning(f"Result was blank for {dataelement_uid} ")
+            logging.warning(f"Result was blank for {dataelement_uid}")
             return None
         try:
             value_int = int(value)
             if value_int < 0:
-                logging.error(f"Value: {value}) is less than 0 for {dataelement_uid}")
+                logging.error(f"Value {value} is less than 0 for {dataelement_uid}")
                 return None
         except ValueError:
-            logging.error(f"Failed to convert {value} to int: {value} for {dataelement_uid}")
+            logging.error(f"Failed to convert '{value}' to int for {dataelement_uid}")
             return None
-
-        data = {
+        return {
             "dataElement": dataelement_uid,
-            "period": period,
-            "orgUnit": orgunit,
-            "value": result["count"]
+            "value": str(value_int),
         }
-        return data
 
     def process_results(self, results, stage):
-        current_period = stage.get('params', {}).get('current_period')
-        orgunit = stage.get('params', {}).get('orgunit')
-        data_element_map = stage.get('params', {}).get('data_element_map')
+        """Build a header-style dataValueSet payload with dataSet, period, and orgUnit at the top level.
+
+        Every data element in the monitoring group is always included in the payload, falling back to
+        "0" when the API returns null or omits a check entirely. This prevents stale non-zero values
+        from persisting across runs.
+        """
+        params = stage.get('params', {})
+        dataset = params.get('dataset')
+        current_period = params.get('current_period')
+        orgunit = params.get('orgunit')
+        data_element_map = params.get('data_element_map')
+
+        # Index API results by check code for fast lookup
+        results_by_code = {v.get("code"): v for v in results.values() if v.get("code")}
+
         data_values = []
-        print("Results: ", results)
-        print("Data element map: ", stage.get("params", {}).get("data_element_map"))
-        for _, v in results.items():
-            check_code = v.get("code")
-            data_element = data_element_map.get(check_code)
-            if data_element is None:
-                logging.warning(f"Data element not found for check code: {check_code}")
-                continue
-            data_element_uid = data_element.get('id')
-            data_value = self.transform_integrity_check_to_data_value(v, data_element_uid, current_period, orgunit)
-            if data_value is not None:
-                data_values.append(data_value)
-        return data_values
+        for check_code, data_element in data_element_map.items():
+            de_id = data_element.get('id')
+            api_result = results_by_code.get(check_code)
+            data_value = self.transform_integrity_check_to_data_value(api_result, de_id)
+            if data_value is None:
+                # API returned null/missing — explicitly zero out to avoid stale values
+                logging.debug(f"No result for check '{check_code}', sending zero for DE {de_id}")
+                data_value = {"dataElement": de_id, "value": "0"}
+            data_values.append(data_value)
+
+        return {
+            "dataSet": dataset,
+            "period": current_period,
+            "orgUnit": orgunit,
+            "dataValues": data_values,
+        }
 
 
     def _fetch_existing_integrity_des(self):
@@ -189,13 +200,12 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
 
     def get_integrity_checks_no_data_elements(self):
         checks = self.api_utils.get_metadata_integrity_checks()
-        #Exclude any slow checks
         checks = [check for check in checks if not check["isSlow"]]
         des = self._fetch_existing_integrity_des()
-        #Remove the MI_ prefix from each code
-        for de in des:
-            this_code = de["code"][3:]
-            for check in checks:
-                if check["code"] == this_code:
-                    checks.remove(check)
-        return checks
+        existing_codes = {de["code"][3:] for de in des if de.get("code", "").startswith("MI_")}
+        existing_names = {de["name"] for de in des if de.get("name")}
+        return [
+            check for check in checks
+            if check["code"] not in existing_codes
+            and f"[MI] {check.get('displayName', '')}" not in existing_names
+        ]

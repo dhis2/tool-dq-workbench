@@ -38,7 +38,6 @@ class Dhis2ApiUtils:
         if 'Content-Type' not in self.request_headers:
             self.request_headers['Content-Type'] = 'application/json'
         response = requests.post(url, json=metadata, headers=self.request_headers)
-        response.raise_for_status()
         return response
 
 
@@ -83,17 +82,23 @@ class Dhis2ApiUtils:
                 raise requests.exceptions.RequestException(f"Failed to fetch data value sets: {response.status}")
             return await response.json()
 
-    async def create_and_post_data_value_set(self, data_values, session, params=None):
-        datavalue_set = {
-            'dataValues': data_values
-        }
+    async def post_data_value_set(self, payload, session, params=None):
+        """Post a dataValueSet payload to DHIS2.
+
+        ``payload`` is the full request body dict, e.g.::
+
+            # flat (no header)
+            {'dataValues': [...]}
+
+            # with header fields (dataSet / period / orgUnit before the values)
+            {'dataSet': 'uid', 'period': '202401', 'orgUnit': 'uid', 'dataValues': [...]}
+        """
         url = f'{self.base_url}/api/dataValueSets'
         if params:
-            #Any extra params to add to the URL from the params dict
             query = '&'.join([f"{key}={value}" for key, value in params.items()])
             url = f'{url}?{query}'
 
-        async with session.post(url, json=datavalue_set) as response:
+        async with session.post(url, json=payload) as response:
             if response.status != 200:
                 logging.error(f"Failed to post data value set: {response.status}")
                 logging.error(await response.text())

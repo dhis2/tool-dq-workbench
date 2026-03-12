@@ -12,7 +12,7 @@ We can then resolve this particular issue by removing the
 category options that have no categories assigned to them. The next day
 when the integrity stage is run again, the number of errors for the
 ``Category options with no categories`` check will be 0, indicating that
-the issue has been resolved.
+all of the issues have been resolved.
 
 It is of course possible to use the Data Administration app to view
 metadata integrity violations, but this only provides a snapshot of the
@@ -21,7 +21,9 @@ stages of the DQ Workbench, we can track the number of metadata integrity violat
 time, allowing us to see trends and patterns in the data. Since the
 number of integrity violations is recorded as a normal data value in
 DHIS2, we can also use the Data Visualizer app to create charts and
-dashboards to visualize the data and share it with others.
+dashboards to visualize the state of data integrity in  the system,
+both as a function of time as well as through the organisation unit
+hierarchy.
 
 Create a new integrity stage
 ------------------------------

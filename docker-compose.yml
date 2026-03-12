@@ -1,0 +1,30 @@
+services:
+
+  # CLI runner — the primary production workload.
+  # Run once manually or from cron: docker compose run --rm cli
+  cli:
+    build: .
+    volumes:
+      - ./config:/app/config:ro
+    environment:
+      DHIS2_API_TOKEN: ${DHIS2_API_TOKEN}
+    entrypoint: ["dq-monitor", "--config", "/app/config/config.yml"]
+
+  # Web UI — for creating and editing the configuration file only.
+  # Start when needed: docker compose --profile web up
+  # Stop when done:    docker compose --profile web down
+  #
+  # WARNING: The web UI has no built-in authentication. Only run it on
+  # localhost or a trusted network, and stop it when you are finished.
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./config:/app/config
+    environment:
+      CONFIG_PATH: /app/config/config.yml
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
+      DHIS2_API_TOKEN: ${DHIS2_API_TOKEN}
+    profiles:
+      - web

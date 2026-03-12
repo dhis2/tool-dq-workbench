@@ -23,14 +23,13 @@ pip install --upgrade pip
 echo "Installing dq-workbench in editable mode..."
 pip install -e .
 
-# Optionally install dev dependencies if requirements.txt exists
-if [ -f "requirements.txt" ]; then
+# Optionally install dev dependencies
+if [ "${1}" = "--dev" ]; then
   echo "Installing development dependencies..."
-  pip install -r requirements.txt
-else
-  echo "requirements.txt not found. Skipping dev dependencies."
+  pip install -e .[dev]
 fi
 
 echo "Setup complete."
 echo "To activate the environment later, run: source .venv/bin/activate"
+echo "To install dev dependencies (pytest etc.), run: ./setup.sh --dev"
 

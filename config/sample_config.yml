@@ -1,6 +1,7 @@
 server:
   base_url: https://play.im.dhis2.org/dev-2-42
-  d2_token: d2p_SuperSecretToken
+  d2_token: d2p_UPKLF5XCrYdjX1HWJC9uE3U8BkCMOIWO9RlgaTGmjwh51Qmv4M
   logging_level: INFO
   max_concurrent_requests: 5
   max_results: 500
+  min_max_bulk_api_disabled: false

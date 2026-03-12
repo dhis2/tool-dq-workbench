@@ -41,6 +41,8 @@ def validate_integrity_stage(stage: Dict[str, Any]) -> None:
         raise ValueError("Monitoring group must be specified")
     if not params.get('period_type'):
         raise ValueError("Period type must be specified")
+    if not params.get('dataset'):
+        raise ValueError("Dataset must be specified")
 
 
 # --------------------Helpers--------------------
@@ -94,6 +96,7 @@ def _apply_form_to_integrity_stage(stage: Dict[str, Any], form: Mapping[str, str
     params['duration'] = as_str('duration', params.get('duration'))
     params['monitoring_group'] = as_str('monitoring_group', params.get('monitoring_group'))
     params['period_type'] = as_str('period_type', params.get('period_type'))
+    params['dataset'] = as_str('dataset', params.get('dataset'))
 
     # UID handling
     if not is_edit and not stage.get('uid'):
@@ -121,10 +124,11 @@ def get_data_element_group_name(api_utils: Dhis2ApiUtils, deg_uid: str) -> str:
 
 def _build_de_payload(check):
     code = str(check.get('code', '') or '')
+    name = str(check.get('name', '') or '')
     display_name = str(check.get('displayName', '') or '')
     return {
         "name": f"[MI] {display_name}",
-        "shortName": f"[MI] {display_name[:40]}",  # DHIS2 shortName max 50 chars
+        "shortName": f"[MI] {name[:44]}",  # name is a short unique snake_case identifier
         "code": f"MI_{code}",
         "valueType": "INTEGER",
         "domainType": "AGGREGATE",
@@ -159,9 +163,17 @@ def integrity_stage_view(stage_index: Optional[int] = None):
     # API utils (only for rendering names / feedback)
     api_utils = _api_utils_from_config(config)
 
-    # Resolve DE group name for display
+    # Resolve DE group name and dataset name for display
     deg_uid = stage.get('params', {}).get('monitoring_group', '')
     deg_name = get_data_element_group_name(api_utils, deg_uid) if deg_uid else ''
+    ds_uid = stage.get('params', {}).get('dataset', '')
+    ds_name = ''
+    if ds_uid:
+        try:
+            ds = api_utils.fetch_dataset_by_id(ds_uid)
+            ds_name = (ds or {}).get('name') or ds_uid
+        except Exception:
+            ds_name = ds_uid
 
     if request.method == 'POST':
         _apply_form_to_integrity_stage(stage, request.form, is_edit)
@@ -197,7 +209,8 @@ def integrity_stage_view(stage_index: Optional[int] = None):
         "stage_form_integrity_checks.html",
         stage=deepcopy(stage) if is_edit else stage,
         edit=is_edit,
-        deg_name=deg_name
+        deg_name=deg_name,
+        ds_name=ds_name,
     )
 
 @api_bp.route('/integrity-stage/create-missing-des', methods=['POST'], endpoint='create_missing_des')
@@ -262,8 +275,19 @@ def create_missing_data_elements():
                 ignored_count = stats.get('ignored', 0)
                 flash(f"Created {created_count} new data elements, {ignored_count} ignored.", 'success')
             elif resp.status_code == 409:
-                error_msg = resp.json().get('message', 'Conflict occurred while creating data elements.')
-                flash(f"DHIS2 returned a conflict (409): {error_msg}", 'warning')
+                body = resp.json()
+                errors = []
+                for type_report in body.get('response', {}).get('typeReports', []):
+                    for obj_report in type_report.get('objectReports', []):
+                        for error_report in obj_report.get('errorReports', []):
+                            msg = error_report.get('message')
+                            if msg:
+                                errors.append(msg)
+                if errors:
+                    for error in errors:
+                        flash(f"DHIS2 conflict: {error}", 'warning')
+                else:
+                    flash(f"DHIS2 returned a conflict (409): {body.get('message', 'No details available.')}", 'warning')
             else:
                 flash(f"Unexpected response from DHIS2: {resp.status_code}", 'warning')
         else:

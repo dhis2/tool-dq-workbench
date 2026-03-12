@@ -12,6 +12,7 @@ setup(
         'python-dateutil',
         'flask',
         'flask-wtf',
+        'gunicorn',
         'numpy',
         'requests',
         'scipy'

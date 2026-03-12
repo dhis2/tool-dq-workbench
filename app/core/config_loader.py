@@ -1,7 +1,8 @@
+import os
+import re
 import yaml
 
 from app.core.api_utils import Dhis2ApiUtils
-import re
 from app.core.time_unit import TimeUnit
 import logging
 from typing import Any, Dict, Sequence
@@ -17,6 +18,7 @@ class ConfigManager:
         if config is None or not isinstance(config, dict):
             raise ValueError("Config must be provided and be a dictionary after loading.")
 
+        self._resolve_env_vars(config)
         self.config: Dict[str, Any] = config
 
         server = self.config.get('server')
@@ -29,6 +31,26 @@ class ConfigManager:
         if validate_runtime:
             self._validate_runtime(self.config)
 
+
+    @staticmethod
+    def _resolve_env_vars(config: dict) -> None:
+        """Replace ``${VAR_NAME}`` placeholders in server config string values
+        with the corresponding environment variable.  Raises ``ValueError`` if
+        a referenced variable is not set."""
+        _placeholder = re.compile(r'^\$\{([^}]+)\}$')
+        server = config.get('server', {})
+        for key, value in server.items():
+            if not isinstance(value, str):
+                continue
+            match = _placeholder.match(value)
+            if match:
+                var_name = match.group(1)
+                resolved = os.environ.get(var_name)
+                if resolved is None:
+                    raise ValueError(
+                        f"Environment variable '{var_name}' referenced in server.{key} is not set."
+                    )
+                server[key] = resolved
 
     def save (self, config_path):
         try:

@@ -14,6 +14,14 @@ from app.core.config_loader import ConfigManager
 from app.core.api_utils import Dhis2ApiUtils
 
 
+def _format_duration(delta) -> str:
+    total = delta.total_seconds()
+    if total < 60:
+        return f"{total:.1f}s"
+    mins, secs = divmod(total, 60)
+    return f"{int(mins)}m {secs:.0f}s"
+
+
 class DataQualityMonitor:
     def __init__(self, config):
         self.config = config
@@ -90,13 +98,14 @@ class DataQualityMonitor:
             "errors": errors,
             "data_values_posted": num_upserts,
             "data_values_deleted": num_deletes,
-            "duration": str(clock_end - clock_start),
+            "duration": _format_duration(clock_end - clock_start),
             "import_summary": combined_import_summary or {}
         }
 
     async def _process_tasks(self, results, session, stage_names):
         upserts = []
         deletes = []
+        integrity_payloads = []  # header-style dataValueSet payloads (e.g. from integrity stages)
         errors = []
         for name, result in zip(stage_names, results):
             if isinstance(result, Exception):
@@ -106,58 +115,69 @@ class DataQualityMonitor:
                 upserts.extend(result.get("dataValues", []))
                 deletes.extend(result.get("deletions", []))
                 errors.extend(result.get("errors", []))
+                if result.get("dataValueSet"):
+                    integrity_payloads.append(result["dataValueSet"])
             else:
                 msg = f"Unexpected result type from stage '{name}': {type(result)}"
                 logging.warning(msg)
                 errors.append(msg)
+
         import_summary = None
         delete_import_summary = None
-        if len(upserts) > 0:
+        integrity_import_summary = None
+
+        if upserts:
             logging.info(f"Posting {len(upserts)} data value upserts")
             try:
-                response = await self.api_utils.create_and_post_data_value_set(upserts, session)
+                response = await self.api_utils.post_data_value_set({'dataValues': upserts}, session)
                 import_summary = Dhis2ApiUtils.parse_import_summary(response)
             except Exception as post_err:
                 logging.error(f"Error posting data values: {post_err}")
                 errors.append(f"Post failed: {post_err}")
-        if len(deletes) > 0:
-            logging.info(f"Posting {len(deletes)} data values deletes")
+
+        if deletes:
+            logging.info(f"Posting {len(deletes)} data value deletes")
             try:
-                params = {'importStrategy': 'DELETE'}
-                response = await self.api_utils.create_and_post_data_value_set(deletes, session, params)
+                response = await self.api_utils.post_data_value_set(
+                    {'dataValues': deletes}, session, {'importStrategy': 'DELETE'}
+                )
                 delete_import_summary = Dhis2ApiUtils.parse_import_summary(response)
             except Exception as delete_err:
                 logging.error(f"Error deleting data values: {delete_err}")
                 errors.append(f"Delete failed: {delete_err}")
-        combined_import_summary = self._merge_import_summaries(delete_import_summary, import_summary)
+
+        for payload in integrity_payloads:
+            num_values = len(payload.get('dataValues', []))
+            logging.info(f"Posting integrity dataValueSet with {num_values} values "
+                         f"(dataSet={payload.get('dataSet')}, period={payload.get('period')}, "
+                         f"orgUnit={payload.get('orgUnit')})")
+            try:
+                response = await self.api_utils.post_data_value_set(payload, session)
+                integrity_import_summary = Dhis2ApiUtils.parse_import_summary(response)
+            except Exception as integrity_err:
+                logging.error(f"Error posting integrity data values: {integrity_err}")
+                errors.append(f"Integrity post failed: {integrity_err}")
+
+        combined_import_summary = self._merge_import_summaries(
+            delete_import_summary, import_summary, integrity_import_summary
+        )
         num_deletes = len(deletes)
-        num_upserts = len(upserts)
+        num_upserts = len(upserts) + sum(len(p.get('dataValues', [])) for p in integrity_payloads)
         return combined_import_summary, num_upserts, num_deletes, errors
 
     @staticmethod
-    def _merge_import_summaries(delete_import_summary, import_summary):
-        combined_import_summary = {
-            "imported": 0,
-            "updated": 0,
-            "deleted": 0,
-            "ignored": 0,
-            "status": "OK"
-        }
-        if delete_import_summary:
-            combined_import_summary["deleted"] += delete_import_summary.get("deleted", 0)
-            combined_import_summary["imported"] += delete_import_summary.get("imported", 0)
-            combined_import_summary["updated"] += delete_import_summary.get("updated", 0)
-            combined_import_summary["ignored"] += delete_import_summary.get("ignored", 0)
-            if delete_import_summary.get("status") != "OK":
-                combined_import_summary["status"] = delete_import_summary.get("status")
-        if import_summary:
-            combined_import_summary["imported"] += import_summary.get("imported", 0)
-            combined_import_summary["updated"] += import_summary.get("updated", 0)
-            combined_import_summary["deleted"] += import_summary.get("deleted", 0)
-            combined_import_summary["ignored"] += import_summary.get("ignored", 0)
-            if import_summary.get("status") != "OK":
-                combined_import_summary["status"] = import_summary.get("status")
-        return combined_import_summary
+    def _merge_import_summaries(*summaries):
+        combined = {"imported": 0, "updated": 0, "deleted": 0, "ignored": 0, "status": "OK"}
+        for s in summaries:
+            if not s:
+                continue
+            combined["imported"] += s.get("imported", 0)
+            combined["updated"] += s.get("updated", 0)
+            combined["deleted"] += s.get("deleted", 0)
+            combined["ignored"] += s.get("ignored", 0)
+            if s.get("status") != "OK":
+                combined["status"] = s.get("status")
+        return combined
 
 
 def run_main():

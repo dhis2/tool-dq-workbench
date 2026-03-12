@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='tomselect/tom-select.bootstrap5.min.css') }}">
 <script src="{{ url_for('static', filename='tomselect/tom-select.complete.js') }}"></script>
 {% include "partials/tom_select_deg.html" %}
+{% include "partials/tom_select_dataset.html" %}
 {% endblock %}
 
 {% block content %}
@@ -30,6 +31,17 @@
         </select>
 
     </div>
+    <div class="mb-3">
+        <label class="form-label" for="dataset">Dataset</label>
+        <select id="dataset" name="dataset" class="form-select">
+            {% if stage.params.dataset %}
+            <option value="{{ stage.params.dataset }}" selected>
+                {{ ds_name or stage.params.dataset }}
+            </option>
+            {% endif %}
+        </select>
+    </div>
+
     <div class="mb-3">
         <label class="form-label" for="period_type">Period Type</label>
         <select id="period_type" name="period_type" class="form-select" required>

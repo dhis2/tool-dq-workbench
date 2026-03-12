@@ -36,10 +36,33 @@ Some experimentation may be required to find the optimal value for your specific
 In order to change  the server configuration, you can make a POST request to the `/api/systemSettings` endpoint with the following JSON payload:
 
 .. code-block:: json
-    {
-    "maxDataQualityResults": 10000
+
+   {
+     "maxDataQualityResults": 10000
    }
 
+
+Using environment variables for secrets
+----------------------------------
+
+Storing the API token directly in the YAML file is convenient for development but
+not recommended for production.  Any value inside the ``server`` section can
+instead reference an environment variable using the ``${VAR_NAME}`` syntax:
+
+.. code-block:: yaml
+
+   server:
+     base_url: https://play.im.dhis2.org/stable-2-42-1
+     d2_token: ${DHIS2_API_TOKEN}
+
+The value is resolved when the config is loaded.  If the referenced variable is
+not set, startup will fail with a clear error message.  Set the variable in your
+shell, service unit, or secrets manager before launching the app:
+
+.. code-block:: bash
+
+   export DHIS2_API_TOKEN=d2p_yourtoken
+   gunicorn "app.web.app:create_app('config/my_config.yml')" --bind 0.0.0.0:5000
 
 Creating a dedicated user account
 ----------------------------------
@@ -56,7 +79,7 @@ Ideally, you should use a dedicated user account with an API token for authentic
  - Perform maintenance tasks
 
  Keep in mind that if any of your data sets are restricted by user groups, you will need to ensure that the user account you are using
- for the DQ Workbench tool is a member of those user groups so that ithas access
+ for the DQ Workbench tool is a member of those user groups so that it has access
  to read data from those data sets. The user should also be assigned to the root organisation unit to ensure full access to all data across
  the organisation unit hierarchy.
 

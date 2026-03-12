@@ -31,6 +31,10 @@ Thumbs.db
 config/*.yml
 !config/sample-config.yml
 
+# Local environment variables (secrets)
+.env
+!.env.example
+
 # Web server cache or logs
 app/web/__pycache__/
 app/**/__pycache__/

@@ -15,7 +15,7 @@
           .then(callback)
           .catch(() => callback());
       },
-      preload: true,
+      loadThrottle: 300,
       create: false
     };
 
