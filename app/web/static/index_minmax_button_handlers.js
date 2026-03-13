@@ -60,55 +60,80 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = event.target;
     if (!(form instanceof HTMLFormElement)) return;
 
-    // 1) ANALYZE → download CSV or flash error
+    // 1) ANALYZE → poll until done, then download CSV
     if (form.matches('form.analyze-form')) {
       event.preventDefault();
-      const done = setBtnBusy(event.submitter, 'Analyzing...');
+      const btn = event.submitter;
+      const done = setBtnBusy(btn, 'Analyzing...');
 
       try {
         const res = await fetch(form.action, {
           method: 'POST',
           credentials: 'same-origin',
-          headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'text/csv,application/octet-stream,application/json'
-          },
-          body: new FormData(form)
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
         }).then(okOrThrow);
 
-        const ct = res.headers.get('Content-Type') || '';
-        if (ct.includes('application/json')) {
-          // Server chose JSON (likely an error or message)
-          const data = await res.json();
-          const msg = data.error || data.message || (Array.isArray(data.errors) ? data.errors.join(', ') : 'Analyze failed');
-          flash('danger', msg);
+        const data = await res.json();
+
+        if (!data.polling || !data.job_id) {
+          flash('danger', data.errors ? data.errors.join(', ') : 'Analyze failed');
+          done();
           return;
         }
 
-        // Assume file content → download
-        const blob = await res.blob();
-        const cd = res.headers.get('Content-Disposition') || '';
-        const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
-        const filename = decodeURIComponent((match && (match[1] || match[2])) || 'analysis.csv');
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = filename;
-        document.body.appendChild(a); a.click(); a.remove();
-        URL.revokeObjectURL(url);
-        flash('success', `Your analysis file <code>${filename}</code> has been downloaded.`);
+        const jobId = data.job_id;
+        const poll = async () => {
+          try {
+            const sr = await fetch(`/api/minmax-analysis-status/${jobId}`, { credentials: 'same-origin' });
+            const status = await sr.json();
+
+            if (status.status === 'running') {
+              setTimeout(poll, 5000);
+              return;
+            }
+
+            done();
+
+            if (status.status === 'error') {
+              flash('danger', `Analyze error: ${status.message}`);
+              return;
+            }
+
+            // Done — fetch and download the CSV
+            const csvRes = await fetch(`/api/minmax-analysis-result/${jobId}`, { credentials: 'same-origin' });
+            if (!csvRes.ok) {
+              flash('danger', 'Failed to retrieve analysis result.');
+              return;
+            }
+            const cd = csvRes.headers.get('Content-Disposition') || '';
+            const match = /filename\*=UTF-8''([^;]+)|filename="?([^"]+)"?/i.exec(cd);
+            const filename = decodeURIComponent((match && (match[1] || match[2])) || 'analysis.csv');
+            const blob = await csvRes.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+            flash('success', `Your analysis file <code>${filename}</code> has been downloaded.`);
+          } catch (err) {
+            done();
+            flash('danger', `Analyze error: ${err.message}`);
+          }
+        };
+        poll();
       } catch (err) {
-        flash('danger', `Analyze error: ${err.message}`);
-      } finally {
         done();
+        flash('danger', `Analyze error: ${err.message}`);
       }
       return;
     }
 
-    // 2) RUN STAGE → show summary or flash error
+    // 2) RUN STAGE → poll until done, then show summary
     if (form.matches('form.run-stage-form')) {
       event.preventDefault();
       const label = (event.submitter && event.submitter.textContent) ? event.submitter.textContent.trim() : 'Run';
-      const done = setBtnBusy(event.submitter, 'Running...');
+      const btn = event.submitter;
+      const done = setBtnBusy(btn, 'Running...');
 
       try {
         const res = await fetch(form.action, {
@@ -119,24 +144,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await res.json();
 
-        if (data.success) {
-          renderRunSuccess(label, data);
-          // Optional: show warnings list if the server returns one
-          const warnings = data.errors || data.warnings;
-          if (Array.isArray(warnings) && warnings.length) {
-            flash('warning', `
-              <strong>Warnings</strong>
-              <ul class="mb-0">${warnings.map(w => `<li>${w}</li>`).join('')}</ul>
-            `);
-          }
-        } else {
+        if (!data.polling || !data.job_id) {
+          done();
           const errs = Array.isArray(data.errors) ? data.errors.join(', ') : (data.errors || 'Unknown error');
           flash('danger', errs);
+          return;
         }
+
+        const jobId = data.job_id;
+        const poll = async () => {
+          try {
+            const sr = await fetch(`/api/run-minmax-stage-status/${jobId}`, { credentials: 'same-origin' });
+            const status = await sr.json();
+
+            if (status.status === 'running') {
+              setTimeout(poll, 5000);
+              return;
+            }
+
+            done();
+
+            if (status.status === 'error') {
+              flash('danger', `Run error: ${status.message}`);
+              return;
+            }
+
+            renderRunSuccess(label, status);
+          } catch (err) {
+            done();
+            flash('danger', `Run error: ${err.message}`);
+          }
+        };
+        poll();
       } catch (err) {
-        flash('danger', `Run error: ${err.message}`);
-      } finally {
         done();
+        flash('danger', `Run error: ${err.message}`);
       }
     }
   });

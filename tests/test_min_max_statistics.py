@@ -47,7 +47,7 @@ def test_values_boxcox(simple_data):
 
 def test_values_boxcox_with_zero():
     df =  [0, 5, 10]
-    val_min, val_max = values_boxcox(df, 2.0)
+    val_min, val_max, comment = values_boxcox(df, 2.0)
     assert np.isnan(val_max) and np.isnan(val_min)
 
 def test_select_method_for_median():

@@ -1,80 +1,45 @@
 Integrity stages
 ================
 
-Integrity stages can be used to record the number of metadata integrity
-violations for each metadata integrity check. As an example, for the
-check called ``Category options with no categories``, we might have
-4 errors on a given day. When the integrity stage is run, it will
-summarize the number of errors for each integrity check and store this
-in a data value in DHIS2.
-
-We can then resolve this particular issue by removing the
-category options that have no categories assigned to them. The next day
-when the integrity stage is run again, the number of errors for the
-``Category options with no categories`` check will be 0, indicating that
-all of the issues have been resolved.
-
-It is of course possible to use the Data Administration app to view
-metadata integrity violations, but this only provides a snapshot of the
-current state of the metadata integrity checks. By using integrity
-stages of the DQ Workbench, we can track the number of metadata integrity violations over
-time, allowing us to see trends and patterns in the data. Since the
-number of integrity violations is recorded as a normal data value in
-DHIS2, we can also use the Data Visualizer app to create charts and
-dashboards to visualize the state of data integrity in  the system,
-both as a function of time as well as through the organisation unit
-hierarchy.
+An integrity stage records the number of metadata integrity violations for each
+configured check as a daily snapshot in DHIS2. For example, the check
+``Category options with no categories`` might report 4 violations today.
+After the issues are resolved, the next run will store 0 — giving you a
+trackable time series in DHIS2's standard analysis tools (Data Visualizer,
+maps, pivot tables).
 
 Create a new integrity stage
-------------------------------
+-----------------------------
 
-To define a new integrity stage, press the *DQ monitor* link in the left
-menu, and then click *New integrity stage*. You will be presented with a
-form to fill in the details of the integrity stage. Each of the fields
-in the form are described below:
+Click **+ New Integrity Stage** from the main configuration screen. Only one
+integrity stage is allowed per configuration.
 
 ``Stage name``
-   The name of the integrity stage. You can only have one integrity stage
-   per DQ workbench configuration.
+   A descriptive name for the stage.
 
 ``Monitoring data element group``
-   A special data element group can be used to control which integrity
-   checks are included in the integrity stage. This field is required, so
-   be sure to create a data element group and assign all of the integrity
-   check data elements that you want to include in the integrity stage.
+   A DHIS2 data element group whose members define which integrity checks to
+   include. Each member must have a code matching ``MI_<check_code>``.
+   See `Create missing integrity data elements`_ below for how to set this up.
 
-``Period type``
-   The period type to store the integrity violations in. As an example,
-   if you choose ``Monthly``, the integrity counts will be stored in the
-   current month. If you run the stage on a nightly basis, this will have
-   the effect of overwriting the current value each day. However, if you
-   choose ``Daily``, the integrity counts will be stored in the current
-   day. If you schedule the stage to run on a daily basis, this will
-   result in a new value being stored each day, allowing you to track the
-   number of integrity violations over time on a more granular level than
-   the monthly period type.
+``Dataset``
+   The dataset used to store the integrity counts. The period type of this
+   dataset determines how results are stored — a Monthly dataset overwrites the
+   current month's value on each run, while a Daily dataset stores a new value
+   each day.
 
 ``Active``
-   Whether the integrity stage is active or not. If the integrity stage
-   is not active, it will be excluded when running the integrity analysis
-   with the command line script.
+   If unchecked, this stage is skipped when running the CLI.
 
 Create missing integrity data elements
-------------------------------------------------
+---------------------------------------
 
-When you define a new integrity stage, you can automatically create the
-necessary data elements to store the integrity counts. This is done by
-pressing the *Create missing integrity data elements* button in the
-integrity stage form. This will create a data element for each of the
-integrity checks that are included in the integrity stage.
+The **Create missing integrity data elements** button in the stage form will
+create a DHIS2 data element for every integrity check that does not already
+have one. Data elements follow the naming convention ``[MI] <check name>``.
 
 .. important::
 
-   When the new data elements are created, they will not automatically
-   be assigned to the data element group that you have defined in the
-   integrity stage form. You will need to manually assign the data elements
-   to the data element group in order for them to be included in the
-   integrity stage.
-
-Note that all data elements used to store integrity check values will follow
-the naming convention ``[MI] - <check name>``.
+   Newly created data elements are **not** automatically added to the monitoring
+   data element group. After creation, open the group in DHIS2 Maintenance and
+   assign the new data elements manually.

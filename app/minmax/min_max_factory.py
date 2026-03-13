@@ -488,6 +488,11 @@ class MinMaxFactory:
 
         if prepared_stage.get('orgunit_group_members'):
             org_units = prepared_stage.get('orgunit_group_members', [])
+        elif prepared_stage.get('use_dataset_orgunits'):
+            org_units = [
+                ou['id'] for ou in prepared_stage['dataset_metadata'].get('organisationUnits', [])
+            ]
+            logging.info(f"Using {len(org_units)} org units from dataset metadata.")
         else:
             org_units = prepared_stage.get('org_units', [])
 
