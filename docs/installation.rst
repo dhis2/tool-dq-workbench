@@ -64,13 +64,13 @@ This is the primary use case.  One command is all you need:
 
 .. code-block:: bash
 
-   docker run --rm -p 127.0.0.1:5000:5000 \
+   docker run --rm -p 127.0.0.1:5001:5000 \
      -e DHIS2_BASE_URL=https://your-dhis2-instance.org \
      -e DHIS2_API_TOKEN=d2p_your_token_here \
      -v $(pwd)/config:/app/config \
      ghcr.io/dhis2/tool-dq-workbench:latest
 
-The web UI will be available at ``http://localhost:5000``.
+The web UI will be available at ``http://localhost:5001``.
 
 - If no ``config.yml`` exists in the mounted volume, one is **bootstrapped
   automatically** from the environment variables.
@@ -84,11 +84,32 @@ The web UI will be available at ``http://localhost:5000``.
    trusted network, and stop it once you have finished editing your
    configuration.
 
-Quick start (local DHIS2 on Linux)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Quick start (local DHIS2 also running in Docker)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If your DHIS2 instance is running locally on the same machine, use
-``--network host`` so the container can reach it via ``localhost``:
+If your DHIS2 is running locally via Docker, ``localhost`` inside the workbench
+container refers to itself — not your host machine.  Use
+``host.docker.internal`` instead:
+
+.. code-block:: bash
+
+   docker run --rm -p 127.0.0.1:5001:5000 \
+     --add-host=host.docker.internal:host-gateway \
+     -e DHIS2_BASE_URL=http://host.docker.internal:8080 \
+     -e DHIS2_API_TOKEN=d2p_your_token_here \
+     -v $(pwd)/config:/app/config \
+     ghcr.io/dhis2/tool-dq-workbench:latest
+
+.. note::
+
+   The ``--add-host`` flag is required on Linux.  On macOS and Windows,
+   ``host.docker.internal`` works out of the box without it.
+
+Quick start (local DHIS2 running directly on Linux, not in Docker)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use ``--network host`` so the container shares the host network stack and can
+reach ``localhost`` directly:
 
 .. code-block:: bash
 
@@ -102,8 +123,8 @@ The web UI will be available at ``http://localhost:5000``.
 
 .. note::
 
-   ``--network host`` is a Linux-only Docker feature.  On macOS or Windows use
-   ``host.docker.internal`` in place of ``localhost`` in the URL.
+   With ``--network host`` the container shares the host port space, so the
+   web UI is on port 5000 (the gunicorn default).
 
 Optional: stable Flask session key
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -116,7 +137,7 @@ a stable key:
 
    export FLASK_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
 
-   docker run --rm -p 127.0.0.1:5000:5000 \
+   docker run --rm -p 127.0.0.1:5001:5000 \
      -e DHIS2_BASE_URL=https://your-dhis2-instance.org \
      -e DHIS2_API_TOKEN=d2p_your_token_here \
      -e FLASK_SECRET_KEY \
