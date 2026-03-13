@@ -52,11 +52,17 @@ def api_datasets():
         d2_token=config['server']['d2_token']
     )
 
+    supported_period_types = {'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'}
     query = request.args.get('q', '').strip()
     try:
         filters = [f"name:ilike:{query}"] if query else []
-        datasets = utils.fetch_data_sets(filters=filters)
-        return jsonify([{"id": ds["id"], "text": ds["name"]} for ds in datasets[:20]])
+        datasets = utils.fetch_data_sets(filters=filters, fields=['id', 'name', 'periodType'])
+        results = [
+            {"id": ds["id"], "text": ds["name"]}
+            for ds in datasets
+            if ds.get("periodType") in supported_period_types
+        ]
+        return jsonify(results[:20])
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

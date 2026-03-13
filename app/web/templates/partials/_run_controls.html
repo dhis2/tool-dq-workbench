@@ -47,6 +47,52 @@
 });
 observer.observe(summaryDiv, { childList: true });
 
+    function showStageSuccess(data) {
+      summaryDiv.innerHTML = `<div class="alert alert-success">${data.output}</div>`;
+      if (data.errors && data.errors.length > 0) {
+        summaryDiv.innerHTML += `
+          <div class="alert alert-warning">
+            <strong>Warnings:</strong>
+            <ul>${data.errors.map(err => `<li>${err}</li>`).join('')}</ul>
+          </div>`;
+      }
+    }
+
+    function showStageError(data) {
+      summaryDiv.innerHTML = `<div class="alert alert-danger">
+        <strong>Error:</strong> ${(data.errors || []).join(', ')}
+      </div>`;
+    }
+
+    async function pollAndCollectIntegrity(stageIndex, stageName, button) {
+      summaryDiv.innerHTML = `<div class="alert alert-info">Integrity stage '${stageName}' triggered — waiting for DHIS2 to finish...</div>`;
+      const poll = async () => {
+        try {
+          const r = await fetch('/api/integrity-running');
+          const status = await r.json();
+          if (status.running) {
+            setTimeout(poll, 5000);
+          } else {
+            button.innerText = 'Collecting...';
+            const collectResp = await fetch(`/api/collect-integrity/${stageIndex}`, { method: 'POST' });
+            const result = await collectResp.json();
+            if (result.success) {
+              showStageSuccess(result);
+            } else {
+              showStageError(result);
+            }
+            button.disabled = false;
+            button.innerText = 'Run';
+          }
+        } catch (err) {
+          summaryDiv.innerHTML = `<div class="alert alert-danger">Unexpected error while polling: ${err.message}</div>`;
+          button.disabled = false;
+          button.innerText = 'Run';
+        }
+      };
+      poll();
+    }
+
     // Per-stage "Run" buttons
     document.querySelectorAll('.run-stage-form').forEach(stageForm => {
       stageForm.addEventListener('submit', async (e) => {
@@ -57,29 +103,26 @@ observer.observe(summaryDiv, { childList: true });
         stageButton.disabled = true;
         stageButton.innerText = 'Running...';
 
+        let handledByPolling = false;
         try {
           const response = await fetch(`/api/run-stage/${stageIndex}`, { method: 'POST' });
           const data = await response.json();
 
-          if (data.success) {
-            summaryDiv.innerHTML = `<div class="alert alert-success">${data.output}</div>`;
-            if (data.errors.length > 0) {
-              summaryDiv.innerHTML += `
-                <div class="alert alert-warning">
-                  <strong>Warnings:</strong>
-                  <ul>${data.errors.map(err => `<li>${err}</li>`).join('')}</ul>
-                </div>`;
-            }
+          if (data.polling) {
+            handledByPolling = true;
+            pollAndCollectIntegrity(stageIndex, data.stage_name, stageButton);
+          } else if (data.success) {
+            showStageSuccess(data);
           } else {
-            summaryDiv.innerHTML = `<div class="alert alert-danger">
-              <strong>Error:</strong> ${data.errors.join(', ')}
-            </div>`;
+            showStageError(data);
           }
         } catch (err) {
           summaryDiv.innerHTML = `<div class="alert alert-danger">Unexpected error: ${err.message}</div>`;
         } finally {
-          stageButton.disabled = false;
-          stageButton.innerText = 'Run';
+          if (!handledByPolling) {
+            stageButton.disabled = false;
+            stageButton.innerText = 'Run';
+          }
         }
       });
     });

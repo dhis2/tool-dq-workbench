@@ -17,29 +17,46 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
         self.api_utils = Dhis2ApiUtils(base_url, d2_token=self.d2_token)
         self.period_utils = Dhis2PeriodUtils()
 
+    async def _prepare_params(self, stage, session, semaphore):
+        """Fetch and attach runtime params (data_element_map, current_period, orgunit) to stage."""
+        dataset = stage.get('params', {}).get('dataset')
+        if not dataset:
+            raise ValueError("Dataset must be specified in the stage params")
+
+        de_group = stage.get('params', {}).get('monitoring_group')
+        data_element_map = await self.fetch_data_elements_to_monitor(session, {'monitoring_group': de_group}, semaphore)
+        stage['params']['data_element_map'] = data_element_map
+
+        period_type = await self.api_utils.fetch_dataset_period_type(dataset, session, semaphore)
+        if not period_type:
+            raise ValueError(f"Dataset '{dataset}' has no periodType defined")
+        supported = {'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Yearly'}
+        if period_type not in supported:
+            raise ValueError(
+                f"Dataset '{dataset}' has period type '{period_type}' which is not supported by this tool"
+            )
+        stage['params']['current_period'] = self.period_utils.get_current_period(period_type)
+
+        orgunits = await self.api_utils.get_organisation_units_at_level(1, session, semaphore)
+        if not orgunits:
+            raise ValueError("No level one organisation unit found")
+        stage['params']['orgunit'] = orgunits[0]
+
+    async def trigger_only_async(self, stage, session, semaphore):
+        """Prepare params and trigger the DHIS2 integrity job. Returns immediately without waiting."""
+        await self._prepare_params(stage, session, semaphore)
+        await self._trigger_metadata_integrity_summaries_async(session, stage, semaphore)
+
+    async def collect_results_async(self, stage, session, semaphore):
+        """Fetch completed results and build the dataValueSet (call after job finishes)."""
+        await self._prepare_params(stage, session, semaphore)
+        results = await self._fetch_completed_summaries_async(session, stage, semaphore)
+        return self.process_results(results, stage)
+
     async def run_stage(self, stage, session, semaphore):
         try:
             logging.info(f"Running metadata integrity stage '{stage['name']}'")
-
-            dataset = stage.get('params', {}).get('dataset')
-            if not dataset:
-                raise ValueError("Dataset must be specified in the stage params")
-
-            de_group = stage.get('params', {}).get('monitoring_group')
-            data_element_map = await self.fetch_data_elements_to_monitor(session, {'monitoring_group': de_group}, semaphore)
-            stage['params']['data_element_map'] = data_element_map
-
-            period_type = stage.get('params', {}).get('period_type')
-            if period_type is None:
-                raise ValueError("Period type is not specified in the stage params")
-            current_period = self.period_utils.get_current_period(period_type)
-            stage['params']['current_period'] = current_period
-
-            orgunits = await self.api_utils.get_organisation_units_at_level(1, session, semaphore)
-            if not orgunits:
-                raise ValueError("No level one organisation unit found")
-            stage['params']['orgunit'] = orgunits[0]
-
+            await self._prepare_params(stage, session, semaphore)
             results = await self._fetch_summary_results_async(session, stage, semaphore)
             data_value_set = self.process_results(results, stage)
             return {

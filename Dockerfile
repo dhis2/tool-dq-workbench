@@ -7,7 +7,7 @@ COPY app/ ./app/
 
 RUN pip install --no-cache-dir .
 
-RUN useradd --system --create-home appuser
+RUN useradd --uid 1000 --create-home appuser && mkdir -p /app/config && chown appuser /app/config
 USER appuser
 
 EXPOSE 5000
@@ -16,4 +16,4 @@ EXPOSE 5000
 # Override with -e CONFIG_PATH=... or in docker-compose.yml.
 ENV CONFIG_PATH=/app/config/config.yml
 
-CMD ["gunicorn", "app.web.app:create_app_from_env", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "300"]
+CMD ["gunicorn", "app.web.app:create_app_from_env()", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "300"]

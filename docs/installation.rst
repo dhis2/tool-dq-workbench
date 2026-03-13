@@ -26,11 +26,12 @@ A typical setup looks like this:
 There are three supported ways to install the DQ Workbench, depending on your
 environment and how you intend to use it.  Choose the one that suits you best:
 
-- :ref:`install-docker` — recommended for server deployment or if you already use Docker.
-- :ref:`install-conda` — recommended for local/laptop use, especially if you work in data science.
-- :ref:`install-venv` — for those who prefer a plain Python virtual environment.
+- :ref:`install-docker` — recommended for the Web UI; no Python installation required.
+- :ref:`install-venv` — recommended for production CLI runs (cron / systemd).
+- :ref:`install-conda` — alternative for local use if you already use conda.
 
-All three approaches require cloning the repository first:
+The :ref:`install-venv` and :ref:`install-conda` approaches require cloning
+the repository first:
 
 .. code-block:: bash
 
@@ -43,54 +44,121 @@ All three approaches require cloning the repository first:
 Docker
 ------
 
-**Requirements:** `Docker <https://docs.docker.com/get-docker/>`_ and Docker Compose.
+**Requirements:** `Docker <https://docs.docker.com/get-docker/>`_.
 
-1. Copy the example environment file and fill in your secrets:
+The Docker image is the recommended way to run the **Web UI**.  A data manager
+can spin it up on their laptop, point it at any DHIS2 instance, build a
+``config.yml``, then shut it down — no Python installation required.
 
-   .. code-block:: bash
+The image is published automatically to the GitHub Container Registry on every
+push to ``main`` and on tagged releases:
 
-      cp .env.example .env
+.. code-block:: bash
 
-   Edit ``.env`` and set ``DHIS2_API_TOKEN`` and ``FLASK_SECRET_KEY``.  See
-   :ref:`flask-secret-key` for how to generate a secure key.
+   docker pull ghcr.io/dhis2/tool-dq-workbench:latest
 
-2. Copy and edit the sample configuration file:
+Quick start (remote DHIS2)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-   .. code-block:: bash
+This is the primary use case.  One command is all you need:
 
-      cp config/sample_config.yml config/config.yml
+.. code-block:: bash
 
-   Set ``base_url`` to your DHIS2 instance and set ``d2_token: ${DHIS2_API_TOKEN}``
-   so the token is read from the environment rather than stored in the file.
+   docker run --rm -p 127.0.0.1:5000:5000 \
+     -e DHIS2_BASE_URL=https://your-dhis2-instance.org \
+     -e DHIS2_API_TOKEN=d2p_your_token_here \
+     -v $(pwd)/config:/app/config \
+     ghcr.io/dhis2/tool-dq-workbench:latest
 
-3. **Create your configuration using the Web UI.**  Start it when you need it
-   and stop it when you are done:
+The web UI will be available at ``http://localhost:5000``.
 
-   .. code-block:: bash
+- If no ``config.yml`` exists in the mounted volume, one is **bootstrapped
+  automatically** from the environment variables.
+- The ``-v`` volume mount persists your configuration across container restarts.
+  Omit it if you only need a temporary session.
+- Stop the container with ``Ctrl-C``.
 
-      docker compose --profile web up
+.. warning::
 
-   The web UI will be available at ``http://localhost:5000``.  Stop it with
-   ``Ctrl-C`` (or ``docker compose --profile web down`` in another terminal).
+   The web UI has no built-in authentication.  Only run it on localhost or a
+   trusted network, and stop it once you have finished editing your
+   configuration.
 
-   .. warning::
+Quick start (local DHIS2 on Linux)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-      The web UI has no built-in authentication.  Only run it on localhost or
-      a trusted network, and stop it once you have finished editing your
-      configuration.
+If your DHIS2 instance is running locally on the same machine, use
+``--network host`` so the container can reach it via ``localhost``:
 
-4. **Run the CLI.**  Once you have a ``config.yml``, run the CLI on demand:
+.. code-block:: bash
 
-   .. code-block:: bash
+   docker run --rm --network host \
+     -e DHIS2_BASE_URL=http://localhost:8080 \
+     -e DHIS2_API_TOKEN=d2p_your_token_here \
+     -v $(pwd)/config:/app/config \
+     ghcr.io/dhis2/tool-dq-workbench:latest
 
-      docker compose run --rm cli
+The web UI will be available at ``http://localhost:5000``.
 
-   To schedule it daily via cron, add a line like this to your crontab
-   (``crontab -e``):
+.. note::
 
-   .. code-block:: text
+   ``--network host`` is a Linux-only Docker feature.  On macOS or Windows use
+   ``host.docker.internal`` in place of ``localhost`` in the URL.
 
-      0 6 * * * cd /path/to/tool-dq-workbench && docker compose run --rm cli >> /var/log/dq-monitor.log 2>&1
+Optional: stable Flask session key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default a random session key is generated at startup, which means browser
+sessions are invalidated whenever the container restarts.  To avoid this, pass
+a stable key:
+
+.. code-block:: bash
+
+   export FLASK_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+
+   docker run --rm -p 127.0.0.1:5000:5000 \
+     -e DHIS2_BASE_URL=https://your-dhis2-instance.org \
+     -e DHIS2_API_TOKEN=d2p_your_token_here \
+     -e FLASK_SECRET_KEY \
+     -v $(pwd)/config:/app/config \
+     ghcr.io/dhis2/tool-dq-workbench:latest
+
+Using Docker Compose (advanced)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For a more permanent setup, copy the example environment file and use
+Docker Compose:
+
+.. code-block:: bash
+
+   cp .env.example .env
+
+Edit ``.env`` and set ``DHIS2_BASE_URL``, ``DHIS2_API_TOKEN``, and
+optionally ``FLASK_SECRET_KEY``.
+
+Start the web UI:
+
+.. code-block:: bash
+
+   docker compose --profile web up
+
+Run the CLI on demand:
+
+.. code-block:: bash
+
+   docker compose run --rm cli
+
+Schedule the CLI daily via cron (``crontab -e``):
+
+.. code-block:: text
+
+   0 6 * * * cd /path/to/tool-dq-workbench && docker compose run --rm cli >> /var/log/dq-monitor.log 2>&1
+
+.. note::
+
+   For production scheduled runs (cron / systemd), a direct install via
+   :ref:`install-venv` is simpler than Docker — fewer moving parts and no
+   container networking to manage.
 
 
 .. _install-conda:
@@ -177,13 +245,13 @@ Python virtual environment
 Flask secret key
 ----------------
 
-The web UI uses a secret key to sign session cookies.  For Docker and venv
-deployments, set the ``FLASK_SECRET_KEY`` environment variable to a random
-value before starting the server:
+The web UI uses a secret key to sign session cookies.  If ``FLASK_SECRET_KEY``
+is not set, a random key is generated at startup — sessions will be lost on
+container or process restart.  For a stable key:
 
 .. code-block:: bash
 
-   python -c "import secrets; print(secrets.token_hex(32))"
+   python3 -c "import secrets; print(secrets.token_hex(32))"
 
-For Docker Compose, add this value to your ``.env`` file.  For a venv
-deployment, export it in your shell or service unit before launching gunicorn.
+Set this value in your ``.env`` file (Docker Compose), as a ``-e`` flag
+(``docker run``), or exported in your shell before launching gunicorn.

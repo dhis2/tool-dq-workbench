@@ -140,7 +140,7 @@ class ConfigManager:
         elif stage_type == 'min_max':
             required = ['dataset', 'destination_data_element']
         elif stage_type == 'integrity_checks':
-            required = ['monitoring_group', 'period_type','dataset']
+            required = ['monitoring_group', 'dataset']
         else:
             raise ValueError(f"Unknown stage type '{stage_type}' in stage '{stage['name']}'")
         for param in required:
@@ -200,10 +200,10 @@ class ConfigManager:
         import requests
         try:
             headers = {'Authorization': f'ApiToken {d2_token}'}
-            ping_url = f"{base_url}/api/ping"
-            response = requests.get(ping_url, headers=headers, timeout=5)
+            url = f"{base_url}/api/me"
+            response = requests.get(url, headers=headers, timeout=5)
             if response.status_code != 200:
-                raise ValueError(f"Invalid DHIS2 API token or server unreachable: {ping_url}")
+                raise ValueError(f"Invalid DHIS2 API token or server unreachable: {url}")
         except requests.RequestException as e:
             raise ValueError(f"Failed to connect to DHIS2 API: {e}")
 

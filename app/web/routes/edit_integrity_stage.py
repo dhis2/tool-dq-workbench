@@ -25,7 +25,6 @@ def default_integrity_stage() -> Dict[str, Any]:
         'level': 1,
         'params': {
             'monitoring_group': '',
-            'period_type': 'Monthly',
             'dataset': ''
         }
     }
@@ -39,8 +38,6 @@ def validate_integrity_stage(stage: Dict[str, Any]) -> None:
     params = stage.get('params', {})
     if not params.get('monitoring_group'):
         raise ValueError("Monitoring group must be specified")
-    if not params.get('period_type'):
-        raise ValueError("Period type must be specified")
     if not params.get('dataset'):
         raise ValueError("Dataset must be specified")
 
@@ -95,7 +92,6 @@ def _apply_form_to_integrity_stage(stage: Dict[str, Any], form: Mapping[str, str
     params['level'] = as_int('orgunit_level', params.get('level'))
     params['duration'] = as_str('duration', params.get('duration'))
     params['monitoring_group'] = as_str('monitoring_group', params.get('monitoring_group'))
-    params['period_type'] = as_str('period_type', params.get('period_type'))
     params['dataset'] = as_str('dataset', params.get('dataset'))
 
     # UID handling

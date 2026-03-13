@@ -182,8 +182,19 @@ class Dhis2ApiUtils:
         return resp[0] if resp else None
 
     def fetch_dataset_by_id(self, uid):
-        resp = self.fetch_metadata_list('dataSets', 'dataSets', filters=[f'id:eq:{uid}'], fields=['id', 'name'])
+        resp = self.fetch_metadata_list('dataSets', 'dataSets', filters=[f'id:eq:{uid}'], fields=['id', 'name', 'periodType'])
         return resp[0] if resp else None
+
+    async def fetch_dataset_period_type(self, uid, session, semaphore):
+        url = f'{self.base_url}/api/dataSets/{uid}.json?fields=periodType'
+        async with semaphore:
+            async with session.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return data.get('periodType')
+                raise requests.exceptions.RequestException(
+                    f"Failed to fetch dataset '{uid}': {response.status}"
+                )
 
     def fetch_validation_rule_group_by_id(self, uid):
         resp = self.fetch_metadata_list('validationRuleGroups', 'validationRuleGroups', filters=[f'id:eq:{uid}'], fields=['id', 'name'])

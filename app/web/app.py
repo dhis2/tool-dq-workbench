@@ -34,10 +34,46 @@ def _configure_app(app, config_path, skip_validation):
 
 def create_app_from_env():
     """Gunicorn-compatible factory that reads CONFIG_PATH from the environment.
-    Used as the application callable in Docker: gunicorn app.web.app:create_app_from_env
+    Used as the application callable in Docker: gunicorn "app.web.app:create_app_from_env()"
+
+    If CONFIG_PATH does not exist but DHIS2_BASE_URL and DHIS2_API_TOKEN are set,
+    a minimal config file is bootstrapped automatically so the app starts without
+    any pre-existing configuration.
     """
     config_path = os.environ.get('CONFIG_PATH', '/app/config/config.yml')
+
+    if not os.path.exists(config_path):
+        base_url = os.environ.get('DHIS2_BASE_URL', '').rstrip('/')
+        api_token = os.environ.get('DHIS2_API_TOKEN', '')
+        if base_url and api_token:
+            _bootstrap_config(config_path, base_url, api_token)
+        else:
+            raise RuntimeError(
+                f"Config file not found at '{config_path}'. "
+                "Either mount a config file or set DHIS2_BASE_URL and DHIS2_API_TOKEN "
+                "environment variables to bootstrap one automatically."
+            )
+
     return create_app(config_path)
+
+
+def _bootstrap_config(config_path, base_url, api_token):
+    """Write a minimal YAML config seeded with the given server details."""
+    import yaml
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    minimal = {
+        'server': {
+            'base_url': base_url,
+            'd2_token': api_token,
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }
+    with open(config_path, 'w') as f:
+        yaml.dump(minimal, f, default_flow_style=False)
+    logging.info(f"Bootstrapped minimal config at '{config_path}'")
 
 
 def create_app(config_path, skip_validation=False):

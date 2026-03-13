@@ -24,7 +24,8 @@ services:
       - ./config:/app/config
     environment:
       CONFIG_PATH: /app/config/config.yml
-      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY}
-      DHIS2_API_TOKEN: ${DHIS2_API_TOKEN}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-}
+      DHIS2_BASE_URL: ${DHIS2_BASE_URL:-}
+      DHIS2_API_TOKEN: ${DHIS2_API_TOKEN:-}
     profiles:
       - web
