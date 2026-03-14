@@ -51,11 +51,34 @@ can spin it up on their laptop, point it at any DHIS2 instance, build a
 ``config.yml``, then shut it down — no Python installation required.
 
 The image is published automatically to the GitHub Container Registry on every
-push to ``main`` and on tagged releases:
+push to ``main`` and on tagged releases.
 
-.. code-block:: bash
+.. _ghcr-login:
 
-   docker pull ghcr.io/dhis2/tool-dq-workbench:latest
+Logging in to the GitHub Container Registry
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The image is hosted in a **private** GitHub Container Registry. You need a
+GitHub account that is a member of the ``dhis2`` organisation to pull it.
+
+1. `Create a GitHub Personal Access Token (classic)
+   <https://github.com/settings/tokens/new>`_ with the **read:packages** scope.
+
+2. Log in to the registry (paste your token when prompted, or pipe it in):
+
+   .. code-block:: bash
+
+      echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+
+   You should see ``Login Succeeded``.
+
+3. Pull the image:
+
+   .. code-block:: bash
+
+      docker pull ghcr.io/dhis2/tool-dq-workbench:latest
+
+You only need to log in once per machine — Docker caches the credentials.
 
 Quick start (remote DHIS2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
