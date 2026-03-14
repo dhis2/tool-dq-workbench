@@ -30,7 +30,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: docker.io/YOUR_DOCKERHUB_USERNAME/tool-dq-workbench
+          images: docker.io/dhis2implementation/tool-dq-workbench
           tags: |
             type=ref,event=branch
             type=semver,pattern={{version}}
