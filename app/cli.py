@@ -129,8 +129,19 @@ class DataQualityMonitor:
         if upserts:
             logging.info(f"Posting {len(upserts)} data value upserts")
             try:
-                response = await self.api_utils.post_data_value_set({'dataValues': upserts}, session)
-                import_summary = Dhis2ApiUtils.parse_import_summary(response)
+                groups = {}
+                for dv in upserts:
+                    ds = dv.pop('_dataset', None)
+                    groups.setdefault(ds, []).append(dv)
+
+                group_summaries = []
+                for ds, values in groups.items():
+                    payload = {'dataValues': values}
+                    if ds:
+                        payload['dataSet'] = ds
+                    response = await self.api_utils.post_data_value_set(payload, session)
+                    group_summaries.append(Dhis2ApiUtils.parse_import_summary(response))
+                import_summary = self._merge_import_summaries(*group_summaries) if group_summaries else None
             except Exception as post_err:
                 logging.error(f"Error posting data values: {post_err}")
                 errors.append(f"Post failed: {post_err}")

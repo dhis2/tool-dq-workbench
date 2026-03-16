@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 
+from aiohttp import ClientResponseError
+
 from app.core.period_type import PeriodType
 
 from app.core.period_utils import Dhis2PeriodUtils
@@ -50,5 +52,7 @@ class StageAnalyzer(ABC):
         async with semaphore:
             async with session.get(url, headers=self.headers) as response:
                 if response.status != 200:
-                    raise Exception(f"Failed to fetch data values from {url}: HTTP {response.status}")
+                    raise ClientResponseError(response.request_info, response.history,
+                                              status=response.status,
+                                              message=f"Failed to fetch data values from {url}")
                 return await response.json()

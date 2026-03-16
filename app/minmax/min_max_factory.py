@@ -191,16 +191,28 @@ class MinMaxFactory:
 
 
 
+    @staticmethod
+    def _get_retry_delay(attempt, backoff_base):
+        return backoff_base * (2 ** (attempt - 1)) + secrets.randbelow(1000) / 1000.0 * 0.2
+
+    # noinspection PyBroadException
+    @staticmethod
+    async def _parse_chunk_response(response, chunk_payload):
+        try:
+            resp = await response.json()
+        except Exception:
+            resp = {}
+        return resp.get("successful", len(chunk_payload["values"])), resp.get("ignored", 0)
+
     async def _post_chunk(self, url, chunk_payload, session, semaphore, index: int,
                           max_retries: int = 3, backoff_base: float = 0.5):
-
-        OK_STATUSES = {200, 201}
-        RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
-
         """
         Post one chunk with bounded concurrency and simple exponential backoff.
         Returns (successful, ignored).
         """
+        OK_STATUSES = {200, 201}
+        RETRYABLE_STATUSES = {408, 425, 429, 500, 502, 503, 504}
+
         attempt = 0
         while True:
             attempt += 1
@@ -208,44 +220,32 @@ class MinMaxFactory:
                 async with semaphore:
                     async with session.post(url, json=chunk_payload) as response:
                         if response.status in OK_STATUSES:
-                            # Body may be JSON or empty
-                            try:
-                                resp = await response.json()
-                            except Exception:
-                                resp = {}
-                            successful = resp.get("successful", len(chunk_payload["values"]))
-                            ignored = resp.get("ignored", 0)
+                            successful, ignored = await self._parse_chunk_response(response, chunk_payload)
                             logging.info(
                                 f"Chunk {index} OK (attempt {attempt}) with {len(chunk_payload['values'])} values.")
                             return successful, ignored
 
-                        # Retry on transient/rate-limit statuses
                         text = await response.text()
                         if response.status in RETRYABLE_STATUSES and attempt < max_retries:
-                            delay = backoff_base * (2 ** (attempt - 1)) + secrets.randbelow(1000) / 1000.0 * 0.2
+                            delay = self._get_retry_delay(attempt, backoff_base)
                             logging.warning(
                                 f"Chunk {index} got {response.status}. Retrying in {delay:.2f}s… Body: {text[:300]}")
                             await asyncio.sleep(delay)
                             continue
 
-                        # Non-retryable (or exhausted retries)
                         raise RequestException(
                             f"Chunk {index} failed: {response.status} - {text[:500]}"
                         )
 
             except Exception as e:
-                # Network/timeout — retry if we have attempts left
                 if isinstance(e, RequestException) and attempt >= max_retries:
                     logging.error(str(e))
                     raise
                 if not isinstance(e, RequestException) and attempt < max_retries:
-
-                    delay = backoff_base * (2 ** (attempt - 1)) + secrets.randbelow(1000) / 1000.0 * 0.2
+                    delay = self._get_retry_delay(attempt, backoff_base)
                     logging.warning(f"Chunk {index} error: {e}. Retrying in {delay:.2f}s…")
                     await asyncio.sleep(delay)
                     continue
-                    return None
-                # Exhausted retries
                 logging.error(f"Chunk {index} failed after {attempt} attempts: {e}")
                 raise
 
@@ -518,14 +518,13 @@ class MinMaxFactory:
         Fetch existing min/max values for the given stage.
         id,periodType,dataSetElements[dataElement[id,valueType]]',
         """
-        des_in_dataset = self.dataset_metadata.get('dataSetElements', [])
+        des_in_dataset = prepared_stage['dataset_metadata'].get('dataSetElements', [])
         numeric_des = [de for de in des_in_dataset if
                        de.get('dataElement', {}).get('valueType') in NumericValueType.list()]
-        url = f'{self.base_url}/api/minMaxDataElements?filter=dataElement.id:in:[', ','.join(
-            [de['dataElement']['id'] for de in numeric_des]), ']'
+        de_ids = ','.join([de['dataElement']['id'] for de in numeric_des])
+        url = f'{self.base_url}/api/minMaxDataElements?filter=dataElement.id:in:[{de_ids}]'
         url = f"{url}&filter=source.id:in:[{','.join(prepared_stage.get('org_units', []))}]"
-        url = f"{url}&filter=generated:eq:", str(generated).lower()
-        #Skip paging
+        url = f"{url}&filter=generated:eq:{str(generated).lower()}"
         url = f"{url}&paging=false"
 
         async with semaphore:
@@ -757,7 +756,7 @@ class MinMaxFactory:
         Prepare the analysis workbook for the given stage.
         This includes fetching data values and calculating min/max values.
         """
-        df = pd.DataFrame()
+        frames = []
         prepared_stages = self.prepare_stage(stage)
         for prepared_stage in prepared_stages:
             data_values = await self.fetch_data_for_dataset(prepared_stage, semaphore, session)
@@ -765,10 +764,10 @@ class MinMaxFactory:
                 logging.info(f"Fetched {len(data_values)} data values for analysis.")
                 grouped_values = self.group_data_for_dataset(data_values)
                 min_max_results = self.calculate_dataset_minmax_values(grouped_values, prepared_stage)
-                return self.build_minmax_csv_dataframe(data_values, min_max_results)
+                frames.append(self.build_minmax_csv_dataframe(data_values, min_max_results))
             else:
                 logging.info("No data values fetched for analysis.")
-                df = pd.DataFrame()
+        return pd.concat(frames) if frames else pd.DataFrame()
 
 
     def impute_missing_minmmax_values(self, prepared_stage, min_max_results):
@@ -778,7 +777,7 @@ class MinMaxFactory:
         """
         #First loop over all orgunits and data elements in the prepared stage. If there is
         # no min/max value in the min_max_results for a given combination of data element, optionCombo and orgunit,
-        # create a MinMaxRecord with the   missing_data_max
+        # create a MinMaxRecord with the missing_data_max
         #missing_data_min from the stage.
         #Exit early if there are no missing_data_min AND missing_data_max
         if not (prepared_stage.get('missing_data_min') or prepared_stage.get('missing_data_max')):

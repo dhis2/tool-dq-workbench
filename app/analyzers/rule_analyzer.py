@@ -66,17 +66,6 @@ class ValidationRuleAnalyzer(StageAnalyzer):
         }
 
         to_delete = existing_set - calculated_set
-
-        deletions = [
-            {
-                'dataElement': de,
-                'orgUnit': ou,
-                'period': period,
-                'categoryOptionCombo': coc
-            }
-            for de, ou, period, coc in to_delete
-        ]
-
         upserts = calculated_set - existing_set
 
         upsert_values = []
@@ -140,14 +129,15 @@ class ValidationRuleAnalyzer(StageAnalyzer):
 
         #Warn if the number of violations is exactly equal to the max_results
         if max_results == len(response_data):
-            logging.error(f"Validation rule violations may be truncated. Consider to increase max_results")
+            msg = "Validation rule violations may be truncated. Consider to increase max_results"
+            logging.error(msg)
 
         return [{
             'dataElement': data_element,
             'orgUnit': ou_id,
             'period': period_id,
             'categoryOptionCombo': self.default_coc,
-            'value': count
+            'value': str(count)
         } for (ou_id, period_id), count in violations.items()]
     
 
@@ -188,6 +178,11 @@ class ValidationRuleAnalyzer(StageAnalyzer):
                 msg = f"Unexpected result in validation rule analysis: {type(result)}"
                 logging.warning(msg)
                 errors.append(msg)
+
+        destination_dataset = params.get('destination_dataset')
+        if destination_dataset:
+            for dv in results:
+                dv['_dataset'] = destination_dataset
 
         existing_data_values = await self.fetch_existing_datvalues(stage, session, semaphore)
         upserts, deletions, calculated_data_length = self.classify_data(existing_data_values, results)

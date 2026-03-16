@@ -7,6 +7,7 @@
   <script src="{{ url_for('static', filename='tomselect/tom-select.complete.js') }}"></script>
   {% include "partials/tom_select_dataelement.html" %}
   {% include "partials/tom_select_dataset.html" %}
+  {% include "partials/tom_select_destination_dataset.html" %}
 {% endblock %}
 
 {% block content %}
@@ -70,6 +71,17 @@
         {% if stage.params.destination_data_element %}
           <option value="{{ stage.params.destination_data_element }}" selected>
             {{ data_element_name or stage.params.destination_data_element }}
+          </option>
+        {% endif %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label" for="destination_dataset">Destination Dataset <span class="text-muted">(optional — required on DHIS2 2.42+)</span></label>
+      <select id="destination_dataset" name="destination_dataset" class="form-select">
+        {% if stage.params.destination_dataset %}
+          <option value="{{ stage.params.destination_dataset }}" selected>
+            {{ destination_dataset_name or stage.params.destination_dataset }}
           </option>
         {% endif %}
       </select>

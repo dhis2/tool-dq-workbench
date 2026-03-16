@@ -132,6 +132,40 @@ def _build_de_payload(check):
         "zeroIsSignificant": True,
     }
 
+def _extract_conflict_errors(body: dict) -> List[str]:
+    return [
+        error_report.get('message')
+        for type_report in body.get('response', {}).get('typeReports', [])
+        for obj_report in type_report.get('objectReports', [])
+        for error_report in obj_report.get('errorReports', [])
+        if error_report.get('message')
+    ]
+
+def _flash_metadata_response(resp) -> None:
+    if resp is None:
+        flash("No response received from DHIS2. Please check the logs for details.", 'warning')
+        return
+
+    if not hasattr(resp, "status_code"):
+        # post_metadata returned parsed JSON directly
+        stats = resp.get('response', {}).get('stats', {}) if isinstance(resp, dict) else {}
+        flash(f"Created {stats.get('created', 0)} new data elements, {stats.get('ignored', 0)} ignored.", 'success')
+        return
+
+    if resp.status_code == 200:
+        stats = resp.json().get('response', {}).get('stats', {})
+        flash(f"Created {stats.get('created', 0)} new data elements, {stats.get('ignored', 0)} ignored.", 'success')
+    elif resp.status_code == 409:
+        body = resp.json()
+        errors = _extract_conflict_errors(body)
+        if errors:
+            for error in errors:
+                flash(f"DHIS2 conflict: {error}", 'warning')
+        else:
+            flash(f"DHIS2 returned a conflict (409): {body.get('message', 'No details available.')}", 'warning')
+    else:
+        flash(f"Unexpected response from DHIS2: {resp.status_code}", 'warning')
+
 
 # -------------------- controllers --------------------
 
@@ -257,42 +291,8 @@ def create_missing_data_elements():
     missing_des = [_build_de_payload(check) for check in missing_checks]
 
     try:
-        payload = {"dataElements": missing_des}
-        resp = api_utils.post_metadata(payload)  # if this returns a requests.Response
-        if resp is None:
-            flash("No response received from DHIS2. Please check the logs for details.", 'warning')
-            return redirect(next_url)
-
-        if hasattr(resp, "status_code"):  # Response-like
-            if resp.status_code == 200:
-                body = resp.json()
-                stats = body.get('response', {}).get('stats', {})
-                created_count = stats.get('created', 0)
-                ignored_count = stats.get('ignored', 0)
-                flash(f"Created {created_count} new data elements, {ignored_count} ignored.", 'success')
-            elif resp.status_code == 409:
-                body = resp.json()
-                errors = []
-                for type_report in body.get('response', {}).get('typeReports', []):
-                    for obj_report in type_report.get('objectReports', []):
-                        for error_report in obj_report.get('errorReports', []):
-                            msg = error_report.get('message')
-                            if msg:
-                                errors.append(msg)
-                if errors:
-                    for error in errors:
-                        flash(f"DHIS2 conflict: {error}", 'warning')
-                else:
-                    flash(f"DHIS2 returned a conflict (409): {body.get('message', 'No details available.')}", 'warning')
-            else:
-                flash(f"Unexpected response from DHIS2: {resp.status_code}", 'warning')
-        else:
-            # If post_metadata already returns parsed JSON
-            stats = resp.get('response', {}).get('stats', {}) if isinstance(resp, dict) else {}
-            created_count = stats.get('created', 0)
-            ignored_count = stats.get('ignored', 0)
-            flash(f"Created {created_count} new data elements, {ignored_count} ignored.", 'success')
-
+        resp = api_utils.post_metadata({"dataElements": missing_des})
+        _flash_metadata_response(resp)
     except requests.exceptions.RequestException as e:
         flash(f"Error creating data elements: {e}", 'danger')
 

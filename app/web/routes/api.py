@@ -7,7 +7,7 @@ from app.core.config_loader import ConfigManager
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
-@api_bp.route('/data-elements')
+@api_bp.route('/data-elements', methods=['GET'])
 def api_data_elements():
     path = current_app.config['CONFIG_PATH']
     config = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False).config
@@ -42,7 +42,7 @@ def api_data_elements():
         logging.error(f"Error in api_data_elements: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@api_bp.route('/datasets')
+@api_bp.route('/datasets', methods=['GET'])
 def api_datasets():
     path = current_app.config['CONFIG_PATH']
     cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
@@ -67,7 +67,7 @@ def api_datasets():
         return jsonify({"error": str(e)}), 500
 
 
-@api_bp.route('/validation-rule-groups')
+@api_bp.route('/validation-rule-groups', methods=['GET'])
 def api_validation_rule_groups():
     path = current_app.config['CONFIG_PATH']
     cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)
@@ -86,7 +86,8 @@ def api_validation_rule_groups():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api_bp.route('/data-element-groups')
+
+@api_bp.route('/data-element-groups', methods=['GET'])
 def api_data_element_groups():
     path = current_app.config['CONFIG_PATH']
     cm = ConfigManager(config_path=path, config=None, validate_structure=False, validate_runtime=False)

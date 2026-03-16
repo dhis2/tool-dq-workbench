@@ -1,13 +1,13 @@
-import random
+import secrets
 import string
 
 class UidUtils:
     @staticmethod
     def generate_uid() -> str:
         """Generates a unique identifier."""
-        #Start with a letter followed by 10 characters (letters or digits)
-        first_letter = random.choice(string.ascii_lowercase)
-        last_part = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        alphabet = string.ascii_letters + string.digits
+        first_letter = secrets.choice(string.ascii_lowercase)
+        last_part = ''.join(secrets.choice(alphabet) for _ in range(10))
         return first_letter + last_part
 
     @staticmethod

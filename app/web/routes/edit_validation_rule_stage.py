@@ -30,13 +30,15 @@ def validation_rule_stage_view(stage_index=None):
                 'level': 1,
                 'duration': '12 months',
                 'validation_rule_group': '',
-                'destination_data_element': ''
+                'destination_data_element': '',
+                'destination_dataset': ''
             },
             'active': True
         }
 
     data_element_name = ''
     validation_rule_group_name = ''
+    destination_dataset_name = ''
 
     api_utils = Dhis2ApiUtils(
         base_url=config['server']['base_url'],
@@ -63,6 +65,15 @@ def validation_rule_stage_view(stage_index=None):
             validation_rule_group_name = vrg_uid
             flash(f"Warning: Failed to fetch validation rule group name for {vrg_uid}", 'warning')
 
+        dest_ds_uid = stage['params'].get('destination_dataset')
+        if dest_ds_uid:
+            try:
+                result = api_utils.fetch_dataset_by_id(dest_ds_uid)
+                destination_dataset_name = (result or {}).get('name') or dest_ds_uid
+            except requests.exceptions.RequestException:
+                destination_dataset_name = dest_ds_uid
+                flash(f"Warning: Failed to fetch destination dataset name for {dest_ds_uid}", 'warning')
+
     if request.method == 'POST':
         # Common updates
         stage['name'] = request.form['stage_name']
@@ -70,6 +81,7 @@ def validation_rule_stage_view(stage_index=None):
         stage['params']['duration'] = request.form['duration']
         stage['params']['validation_rule_group'] = request.form['validation_rule_group']
         stage['params']['destination_data_element'] = request.form['destination_data_element']
+        stage['params']['destination_dataset'] = request.form.get('destination_dataset') or None
         stage['uid'] = request.form.get('uid', '').strip() or UidUtils.generate_uid()
         stage['active'] = request.form.get('active', 'off') == 'on'
 
@@ -89,5 +101,6 @@ def validation_rule_stage_view(stage_index=None):
         stage=deepcopy(stage),
         edit=is_edit,
         data_element_name=data_element_name,
-        validation_rule_group_name=validation_rule_group_name
+        validation_rule_group_name=validation_rule_group_name,
+        destination_dataset_name=destination_dataset_name
     )

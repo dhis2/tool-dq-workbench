@@ -5,9 +5,8 @@ WORKDIR /app
 COPY pyproject.toml setup.py ./
 COPY app/ ./app/
 
-RUN pip install --no-cache-dir .
-
-RUN useradd --uid 1000 --create-home appuser && mkdir -p /app/config && chown appuser /app/config
+RUN pip install --no-cache-dir . && \
+    useradd --uid 1000 --create-home appuser && mkdir -p /app/config && chown appuser /app/config
 USER appuser
 
 EXPOSE 5000

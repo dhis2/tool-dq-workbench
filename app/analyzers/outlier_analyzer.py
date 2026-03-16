@@ -34,6 +34,7 @@ class OutlierAnalyzer(StageAnalyzer):
                 'max_results': max_results,
                 'threshold': params.get('threshold', 0),
                 'destination_data_element': params['destination_data_element'],
+                'destination_dataset': params.get('destination_dataset'),
                 'lower_bound': params.get('lower_bound', 0)
             }
             #Optionally add date offsets if provided
@@ -103,12 +104,12 @@ class OutlierAnalyzer(StageAnalyzer):
                     outlier_json = await response.json()
 
             return self._process_outlier_results(outlier_json, params['destination_data_element'],
-                                                 params['lower_bound'])
+                                                 params['lower_bound'], params.get('destination_dataset'))
 
         except Exception as e:
             return e
 
-    def _process_outlier_results(self, results, destination_data_element, lower_bound):
+    def _process_outlier_results(self, results, destination_data_element, lower_bound, destination_dataset=None):
         outliers_by_ou_and_period = {}
 
         for outlier in results.get('outlierValues', []):
@@ -118,10 +119,16 @@ class OutlierAnalyzer(StageAnalyzer):
             key = (outlier['ou'], outlier['pe'])
             outliers_by_ou_and_period[key] = outliers_by_ou_and_period.get(key, 0) + 1
 
-        return [{
+        data_values = [{
             'dataElement': destination_data_element,
             'orgUnit': ou,
             'period': period,
             'categoryOptionCombo': self.default_coc,
-            'value': count
+            'value': str(count)
         } for (ou, period), count in outliers_by_ou_and_period.items()]
+
+        if destination_dataset:
+            for dv in data_values:
+                dv['_dataset'] = destination_dataset
+
+        return data_values

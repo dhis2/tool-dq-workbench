@@ -1,0 +1,35 @@
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const el = document.getElementById("destination_dataset");
+    if (!el) return;
+
+    const config = {
+      valueField: "id",
+      labelField: "text",
+      searchField: "text",
+      placeholder: "Type to search for datasets...",
+      load: function(query, callback) {
+        if (query.length < 3) return callback();
+        fetch(`/api/datasets?q=${encodeURIComponent(query)}`)
+          .then(response => response.json())
+          .then(callback)
+          .catch(() => callback());
+      },
+      preload: true,
+      create: false,
+    };
+
+    {% if stage.params and stage.params.destination_dataset %}
+      config.options = [{
+        id: "{{ stage.params.destination_dataset }}",
+        text: "{{ destination_dataset_name or stage.params.destination_dataset }}"
+      }];
+      config.items = ["{{ stage.params.destination_dataset }}"];
+    {% else %}
+      config.options = [];
+      config.items = [];
+    {% endif %}
+
+    new TomSelect(el, config);
+  });
+</script>

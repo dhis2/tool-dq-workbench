@@ -103,9 +103,10 @@ The web UI will be available at ``http://localhost:5001``.
 
 .. warning::
 
-   The web UI has no built-in authentication.  Only run it on localhost or a
-   trusted network, and stop it once you have finished editing your
-   configuration.
+   The web UI has no built-in authentication and no CSRF protection.  It is
+   designed for short-lived local use only — run it on localhost or a trusted
+   network, and stop it once you have finished editing your configuration.
+   Do not expose it on a public-facing port.
 
 Quick start (local DHIS2 also running in Docker)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

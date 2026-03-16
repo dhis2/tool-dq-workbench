@@ -33,7 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         msg = await res.text();
       }
-    } catch (_) {}
+    } catch (parseErr) {
+      // Body parsing failed — fall back to the HTTP status string already in msg
+      console.debug('Could not parse error response body:', parseErr);
+    }
     throw new Error(msg);
   };
 

@@ -25,6 +25,7 @@ def default_outlier_stage():
             'algorithm': 'MOD_Z_SCORE',
             'threshold': 3,
             'destination_data_element': '',
+            'destination_dataset': '',
             'start_date_offset': '',
             'end_date_offset': ''
         }
@@ -67,11 +68,13 @@ def _resolve_outlier_stage_references(config, stage):
     )
     de_uid = stage['params'].get('destination_data_element')
     ds_uid = stage['params'].get('dataset')
+    dest_ds_uid = stage['params'].get('destination_dataset')
     monitoring_group_uid = stage['params'].get('monitoring_group')
     de_name = resolve_name(api_utils.fetch_data_element_by_id, de_uid)
     ds_name = resolve_name(api_utils.fetch_dataset_by_id, ds_uid)
+    dest_ds_name = resolve_name(api_utils.fetch_dataset_by_id, dest_ds_uid)
     deg_name = resolve_name(api_utils.fetch_data_element_group_by_id, monitoring_group_uid)
-    return de_name, deg_name, ds_name
+    return de_name, deg_name, ds_name, dest_ds_name
 
 def _apply_form_to_stage(stage: Dict[str, Any], form: Mapping[str, str], is_edit: bool) -> None:
     def as_int(key: str, default: Optional[int] = None) -> Optional[int]:
@@ -94,6 +97,7 @@ def _apply_form_to_stage(stage: Dict[str, Any], form: Mapping[str, str], is_edit
         'algorithm': as_str('algorithm', params.get('algorithm')),
         'threshold': as_int('threshold', params.get('threshold')),
         'destination_data_element': as_str('destination_data_element', params.get('destination_data_element')),
+        'destination_dataset': as_str('destination_dataset', params.get('destination_dataset')),
         'start_date_offset': as_str('start_date_offset', params.get('start_date_offset')),
         'end_date_offset': as_str('end_date_offset', params.get('end_date_offset')),
     })
@@ -142,7 +146,7 @@ def outlier_stage_view(stage_index: Optional[int] = None):
             # fall through to re-render
 
     # Resolve references for rendering
-    de_name, deg_name, ds_name = _resolve_outlier_stage_references(config, stage)
+    de_name, deg_name, ds_name, dest_ds_name = _resolve_outlier_stage_references(config, stage)
 
     return render_template(
         "stage_form_outlier.html",
@@ -151,6 +155,7 @@ def outlier_stage_view(stage_index: Optional[int] = None):
         data_element_name=de_name,
         ds_name=ds_name,
         deg_name=deg_name,
+        destination_dataset_name=dest_ds_name,
     )
 
 
