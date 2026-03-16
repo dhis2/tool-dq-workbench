@@ -81,11 +81,10 @@ docker compose run --rm cli
 
 ## Documentation
 
-Full documentation including configuration reference, stage types, and min-max
-generation is available in the `docs/` directory:
+Full documentation is published at **https://dhis2.github.io/tool-dq-workbench/**.
+
+To build it locally:
 
 ```bash
 cd docs && make html
 ```
-
-Or read the source in `docs/*.rst`.

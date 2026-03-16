@@ -2,9 +2,12 @@
 Building the documentation
 ==========================
 
-The documentation for the DQ Workbench is built using Sphinx.
+The latest documentation is published at https://dhis2.github.io/tool-dq-workbench/
+and is automatically updated on every push to ``main``.
+
+The documentation is built using Sphinx.
 This section explains how to set up your environment and generate the HTML
-and PDF outputs.
+and PDF outputs locally.
 
 Prerequisites
 -------------
