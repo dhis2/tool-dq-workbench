@@ -6,7 +6,7 @@ COPY pyproject.toml setup.py ./
 COPY app/ ./app/
 
 RUN pip install --no-cache-dir . && \
-    useradd --uid 1000 --create-home appuser && mkdir -p /app/config && chown appuser /app/config
+    useradd --uid 1000 --create-home appuser && mkdir -p /app/config && chown -R appuser /app
 USER appuser
 
 EXPOSE 5000
