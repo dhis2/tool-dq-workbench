@@ -15,4 +15,4 @@ EXPOSE 5000
 # Override with -e CONFIG_PATH=... or in docker-compose.yml.
 ENV CONFIG_PATH=/app/config/config.yml
 
-CMD ["gunicorn", "app.web.app:create_app_from_env()", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "300"]
+CMD ["gunicorn", "app.web.app:create_app_from_env()", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "300"]
