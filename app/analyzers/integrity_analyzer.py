@@ -37,10 +37,19 @@ class IntegrityCheckAnalyzer(StageAnalyzer):
             )
         stage['params']['current_period'] = self.period_utils.get_current_period(period_type)
 
-        orgunits = await self.api_utils.get_organisation_units_at_level(1, session, semaphore)
-        if not orgunits:
-            raise ValueError("No level one organisation unit found")
-        stage['params']['orgunit'] = orgunits[0]
+        root_org_unit = self.config['server'].get('root_org_unit')
+        if root_org_unit:
+            stage['params']['orgunit'] = root_org_unit
+        else:
+            orgunits = await self.api_utils.get_organisation_units_at_level(1, session, semaphore)
+            if not orgunits:
+                raise ValueError("No level one organisation unit found")
+            if len(orgunits) > 1:
+                raise ValueError(
+                    "Multiple level 1 organisation units found. "
+                    "Set 'root_org_unit' in the server config to specify which one to use."
+                )
+            stage['params']['orgunit'] = orgunits[0]
 
     async def trigger_only_async(self, stage, session, semaphore):
         """Prepare params and trigger the DHIS2 integrity job. Returns immediately without waiting."""

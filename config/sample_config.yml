@@ -5,3 +5,4 @@ server:
   max_concurrent_requests: 5
   max_results: 500
   min_max_bulk_api_disabled: false
+  # root_org_unit: ImspTQPwCqd  # required only if your instance has multiple top-level org units

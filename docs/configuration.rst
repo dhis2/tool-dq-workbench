@@ -16,6 +16,7 @@ Here is an example of the server configuration:
      logging_level: INFO            # DEBUG | INFO | WARNING | ERROR
      max_concurrent_requests: 10    # limits simultaneous API calls
      max_results: 1000              # caps results per request (500–50000)
+     # root_org_unit: ImspTQPwCqd   # required only if your instance has multiple top-level org units
 
 
 Maximum concurrent requests
@@ -40,6 +41,25 @@ In order to change  the server configuration, you can make a POST request to the
    {
      "maxDataQualityResults": 10000
    }
+
+
+Multiple root organisation units
+----------------------------------
+
+Most DHIS2 instances have a single top-level organisation unit. In that case the integrity
+stage detects it automatically and no extra configuration is needed.
+
+Some instances are configured with multiple top-level organisation units. In that case the
+integrity stage cannot determine where to store results and will raise an error at runtime.
+Set ``root_org_unit`` in the server config to the UID of the organisation unit that should
+be used as the target:
+
+.. code-block:: yaml
+
+   server:
+     root_org_unit: ImspTQPwCqd
+
+This setting is only used by integrity check stages. All other stage types are unaffected.
 
 
 Using environment variables for secrets
