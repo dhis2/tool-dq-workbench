@@ -51,34 +51,8 @@ can spin it up on their laptop, point it at any DHIS2 instance, build a
 ``config.yml``, then shut it down — no Python installation required.
 
 The image is published automatically to the GitHub Container Registry on every
-push to ``main`` and on tagged releases.
-
-.. _ghcr-login:
-
-Logging in to the GitHub Container Registry
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The image is hosted in a **private** GitHub Container Registry. You need a
-GitHub account that is a member of the ``dhis2`` organisation to pull it.
-
-1. `Create a GitHub Personal Access Token (classic)
-   <https://github.com/settings/tokens/new>`_ with the **read:packages** scope.
-
-2. Log in to the registry (paste your token when prompted, or pipe it in):
-
-   .. code-block:: bash
-
-      echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
-
-   You should see ``Login Succeeded``.
-
-3. Pull the image:
-
-   .. code-block:: bash
-
-      docker pull ghcr.io/dhis2/tool-dq-workbench:latest
-
-You only need to log in once per machine — Docker caches the credentials.
+push to ``main`` and on tagged releases. The registry is **public** — no login
+required.
 
 Quick start (remote DHIS2)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -148,7 +122,10 @@ The web UI will be available at ``http://localhost:5000``.
 .. note::
 
    With ``--network host`` the container shares the host port space, so the
-   web UI is on port 5000 (the gunicorn default).
+   web UI is on port 5000 (the gunicorn default). Gunicorn logs
+   ``Listening at: http://0.0.0.0:5000`` — this is the bind address *inside*
+   the container. Open ``http://localhost:5000`` in your browser, not
+   ``http://0.0.0.0:5000``.
 
 Optional: stable Flask session key
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
