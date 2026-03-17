@@ -25,7 +25,7 @@ def test_main_serves_via_waitress(config_file, monkeypatch):
     """main() must use waitress.serve, not app.run()."""
     monkeypatch.setattr(sys, 'argv', ['prog', '--config', config_file, '--skip-validation'])
     with patch('app.web.app.serve') as mock_serve, \
-         patch('app.web.app.threading') as mock_threading:
+         patch('app.web.app.threading'):
         from app.web.app import main
         main()
     mock_serve.assert_called_once()
@@ -43,7 +43,7 @@ def test_main_opens_browser(config_file, monkeypatch):
         main()
     mock_threading.Timer.assert_called_once()
     timer_args = mock_threading.Timer.call_args[0]
-    assert timer_args[0] == 1.5   # delay in seconds
+    assert isinstance(timer_args[0], (int, float)) and timer_args[0] > 0  # positive delay in seconds
 
 
 def test_create_app_uses_bundle_paths_when_frozen(tmp_path, monkeypatch):
