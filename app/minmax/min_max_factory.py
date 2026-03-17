@@ -456,12 +456,13 @@ class MinMaxFactory:
             'orgUnit': org_unit,
             'startDate': prepared_stage['start_date'].strftime("%Y-%m-%d"),
             'endDate': prepared_stage['end_date'].strftime("%Y-%m-%d"),
-            'children': 'true'
         }
+        if not prepared_stage.get('use_dataset_orgunits'):
+            params['children'] = 'true'
         from urllib.parse import urlencode
         full_url = f"{url}?{urlencode(params)}"
-        logging.debug("Dispatching data values request to URL: %s", full_url)
         async with semaphore:
+            logging.debug("Dispatching data values request to URL: %s", full_url)
             async with session.get(url, params=params) as response:
                 if response.status == 200:
                     resp = await response.json()

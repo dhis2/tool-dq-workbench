@@ -205,6 +205,21 @@ def integrity_stage_view(stage_index: Optional[int] = None):
         except Exception:
             ds_name = ds_uid
 
+    has_missing_checks = False
+    if request.method == 'GET':
+        try:
+            d2_token = config['server'].get('d2_token')
+            base_url = config['server']['base_url']
+            request_headers = {
+                'Authorization': f'ApiToken {d2_token}',
+                'Content-Type': 'application/json',
+            }
+            integrity_analyzer = IntegrityCheckAnalyzer(config, base_url=base_url, headers=request_headers)
+            missing_checks = integrity_analyzer.get_integrity_checks_no_data_elements()
+            has_missing_checks = bool(missing_checks)
+        except Exception as e:
+            flash(f"Could not check for new integrity checks: {e}", 'warning')
+
     if request.method == 'POST':
         _apply_form_to_integrity_stage(stage, request.form, is_edit)
 
@@ -241,6 +256,7 @@ def integrity_stage_view(stage_index: Optional[int] = None):
         edit=is_edit,
         deg_name=deg_name,
         ds_name=ds_name,
+        has_missing_checks=has_missing_checks,
     )
 
 @api_bp.route('/integrity-stage/create-missing-des', methods=['POST'], endpoint='create_missing_des')

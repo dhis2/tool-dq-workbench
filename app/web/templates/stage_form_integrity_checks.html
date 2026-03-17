@@ -32,7 +32,7 @@
 
     </div>
     <div class="mb-3">
-        <label class="form-label" for="dataset">Dataset</label>
+        <label class="form-label" for="dataset">Monitoring dataset</label>
         <select id="dataset" name="dataset" class="form-select">
             {% if stage.params.dataset %}
             <option value="{{ stage.params.dataset }}" selected>
@@ -53,6 +53,11 @@
 </form>
 
 <hr>
+{% if has_missing_checks %}
+<div class="alert alert-info" role="alert">
+  New integrity checks are available. Click below to create the missing data elements.
+</div>
+{% endif %}
 <div><!-- Create missing DEs -->
 <form method="post" action="{{ url_for('api.create_missing_des') }}" class="d-inline ms-2">
   {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}

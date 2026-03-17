@@ -1,3 +1,4 @@
+
 # Design: Zero-Config Startup for Web UI
 
 **Date:** 2026-03-17

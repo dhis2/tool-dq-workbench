@@ -66,14 +66,20 @@ described in the next section.
 
 
 ``Organisation units``
-   The organisation units to include in the min-max generation. Only data values reported for the selected organisation units
-   (or their descendants, if the "Include descendants" option is selected) will be considered for min-max generation. You may need
-   to experiment with different levels of organisation units. Using lower level organisation units will result in more data queries
-   to the server (each smaller in size but more numerous), while using higher level organisation units (e.g. national) will result in
-   fewer data queries (which may be larger in size). The optimal choice will depend on the specific DHIS2 instance and its data volume.
+   The organisation units to include in the min-max generation. There are three ways to specify which organisation units to use:
 
-   Alternatively, you may only wish to calculate min-max values for a specific set of organisation units. In this case, you can select
-   the specific organisation units to include in the min-max generation.
+   - **Explicit org units** — select one or more organisation units directly. Data will be fetched for the selected units
+     *and all their descendants* (``children=true``). You may need to experiment with different levels of the hierarchy.
+     Using lower-level org units results in more requests (each smaller), while using higher-level units (e.g. national)
+     results in fewer, larger requests. The optimal choice depends on the DHIS2 instance and its data volume.
+
+   - **Org unit groups** — select one or more org unit groups. Data will be fetched for every member of those groups
+     *and all their descendants* (``children=true``).
+
+   - **Dataset org units** — fetch the list of org units directly from the dataset's metadata. Because these are already
+     the specific org units assigned to the dataset (typically facilities), descendants are **not** requested
+     (``children=false``). This is the most precise option and avoids fetching data for org units that are not
+     actually assigned to the dataset.
 
 ``Min-max groups``
     Groups are used to define the method for calculating the min-max values. Each group specifies a statistical method, a limit median,

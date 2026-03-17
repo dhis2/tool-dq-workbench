@@ -15,18 +15,23 @@ Click **+ New Integrity Stage** from the main configuration screen. Only one
 integrity stage is allowed per configuration.
 
 ``Stage name``
-   A descriptive name for the stage.
+A descriptive name for the stage.
 
 ``Monitoring data element group``
-   A DHIS2 data element group whose members define which integrity checks to
-   include. Each member must have a code matching ``MI_<check_code>``.
-   See `Create missing integrity data elements`_ below for how to set this up.
+A DHIS2 data element group whose members define which integrity checks to
+include. Each member must have a code matching ``MI_<check_code>``.
+See `Create missing integrity data elements`_ below for how to set this up.
 
-``Dataset``
-   The dataset used to store the integrity counts. The period type of this
-   dataset determines how results are stored — a Monthly dataset overwrites the
-   current month's value on each run, while a Daily dataset stores a new value
-   each day.
+The monitoring data element group provides a way for you to control which
+integrity checks should be monitored over time. You can choose to select
+all checks, or just choose the ones you are interested in to monitor.
+
+
+``Monitoring Dataset``
+The dataset used to store the integrity counts. The period type of this
+dataset determines how results are stored — a Monthly dataset overwrites the
+current month's value on each run, while a Daily dataset stores a new value
+each day.
 
 ``Active``
    If unchecked, this stage is skipped when running the CLI.
@@ -40,6 +45,6 @@ have one. Data elements follow the naming convention ``[MI] <check name>``.
 
 .. important::
 
-   Newly created data elements are **not** automatically added to the monitoring
-   data element group. After creation, open the group in DHIS2 Maintenance and
-   assign the new data elements manually.
+Newly created data elements are **not** automatically added to the monitoring
+data element group. After creation, open the group in DHIS2 Maintenance and
+assign the new data elements manually.
