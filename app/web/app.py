@@ -57,6 +57,48 @@ def create_app_from_env():
     return create_app(config_path)
 
 
+def _resolve_config_path(cli_arg):
+    """Resolve config path: CLI arg > DQ_CONFIG_PATH env var > platform default.
+
+    DQ_CONFIG_PATH is a new env var for the desktop use case.
+    The existing CONFIG_PATH env var remains Docker/gunicorn-only (read by create_app_from_env).
+    """
+    import sys
+    from pathlib import Path
+    if cli_arg:
+        return Path(cli_arg)
+    env = os.environ.get('DQ_CONFIG_PATH')
+    if env:
+        return Path(env)
+    if sys.platform == 'win32':
+        return Path.home() / 'Documents' / 'DQ Workbench' / 'config.yml'
+    return Path.home() / '.config' / 'dq-workbench' / 'config.yml'
+
+
+def _write_blank_config(path):
+    """Write a minimal blank config to path, creating parent directories.
+
+    Unlike the existing _bootstrap_config() (which takes real credentials for Docker),
+    this writes an empty config for first-run onboarding — credentials are filled in
+    via the web UI.
+    """
+    import yaml  # yaml is not imported at module level; use local import like _bootstrap_config
+    path.parent.mkdir(parents=True, exist_ok=True)
+    minimal = {
+        'server': {
+            'base_url': '',
+            'd2_token': '',
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }
+    with open(path, 'w') as f:
+        yaml.dump(minimal, f, default_flow_style=False)
+    logging.info(f"Created blank config at '{path}'")
+
+
 def _bootstrap_config(config_path, base_url, api_token):
     """Write a minimal YAML config seeded with the given server details."""
     import yaml
@@ -104,14 +146,22 @@ def _configure_logging(app):
 
 def main():
     parser = argparse.ArgumentParser(description="Flask UI for Data Quality Monitor")
-    parser.add_argument('--config', required=True, help='Path to YAML config file')
+    parser.add_argument('--config', default=None, help='Path to YAML config file (default: platform-appropriate location)')
     parser.add_argument('--skip-validation', action='store_true',
                         help='Skip config validation (use for onboarding only)')
     parser.add_argument('--debug', action='store_true',
                         help='Enable Flask debug mode (development only)')
     args = parser.parse_args()
 
-    app = create_app(args.config, skip_validation=args.skip_validation)
+    config_path = _resolve_config_path(args.config)
+    skip_validation = args.skip_validation
+
+    if not config_path.exists():
+        logging.info(f"No config found at '{config_path}'. Creating blank config.")
+        _write_blank_config(config_path)
+        skip_validation = True
+
+    app = create_app(str(config_path), skip_validation=skip_validation)
     print(f"Using config: {app.config['CONFIG_PATH']}")
 
     if args.debug:
