@@ -196,6 +196,10 @@ jobs:
 
 `windows-latest` runners have Inno Setup 6 pre-installed. The version is extracted from the git tag (`v0.9.4` → `0.9.4`). The `.exe` is attached to the GitHub Release alongside the Docker image.
 
+## Limitations
+
+**Single config file only.** The Windows installer is designed for one config file at a time, stored at the platform default path (`C:\Users\<name>\Documents\DQ Workbench\config.yml`). There is no UI for switching between multiple configs. Technical users who need multiple configs can use `DQ_CONFIG_PATH` or the `--config` flag from the command line, but this is not a supported workflow for the installer target audience.
+
 ## What Is Not Changing
 
 - `create_app_from_env()` and the Docker/gunicorn production path — untouched
