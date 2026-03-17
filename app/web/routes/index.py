@@ -1,5 +1,5 @@
 # app/web/routes/index.py
-from flask import current_app, render_template
+from flask import current_app, flash, redirect, render_template, url_for
 import yaml
 from .ui_blueprint import ui_bp
 from pathlib import Path
@@ -24,7 +24,7 @@ def index():
 
         # Required server section
         server = config.get('server') or {}
-        has_server = bool(server)
+        has_server = bool(server.get('base_url') and server.get('d2_token'))
 
         # Optional analyzer_stages section
         raw_stages = config.get('analyzer_stages') or []
@@ -36,8 +36,12 @@ def index():
         )
 
     except Exception as e:
-        # Don’t crash—render the page with an error message
+        # Don't crash—render the page with an error message
         load_error = str(e)
+
+    if not load_error and not has_server:
+        flash("Welcome \u2014 please enter your DHIS2 server details to get started.", "info")
+        return redirect(url_for('api.edit_server'))
 
     return render_template(
         "index.html",

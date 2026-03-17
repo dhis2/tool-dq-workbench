@@ -1,0 +1,74 @@
+# tests/test_web_index.py
+import pytest
+import yaml
+from app.web.app import create_app
+
+
+@pytest.fixture
+def blank_config(tmp_path):
+    """A config file with an empty server section — simulates first run."""
+    cfg = tmp_path / "config.yml"
+    cfg.write_text(yaml.dump({
+        'server': {
+            'base_url': '',
+            'd2_token': '',
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }))
+    return str(cfg)
+
+
+@pytest.fixture
+def populated_config(tmp_path):
+    """A config file with real (fake) server credentials."""
+    cfg = tmp_path / "config.yml"
+    cfg.write_text(yaml.dump({
+        'server': {
+            'base_url': 'https://dhis2.example.org',
+            'd2_token': 'fake-token',
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }))
+    return str(cfg)
+
+
+@pytest.fixture
+def client_blank(blank_config):
+    app = create_app(blank_config, skip_validation=True)
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
+
+
+@pytest.fixture
+def client_populated(populated_config):
+    app = create_app(populated_config, skip_validation=True)
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        yield client
+
+
+def test_blank_config_redirects_to_edit_server(client_blank):
+    """First run with empty credentials should redirect to the server config page."""
+    response = client_blank.get('/', follow_redirects=False)
+    assert response.status_code == 302
+    assert '/api/edit-server' in response.headers['Location']
+
+
+def test_blank_config_redirect_shows_welcome_flash(client_blank):
+    """The first-run redirect must include the welcome flash message."""
+    response = client_blank.get('/', follow_redirects=True)
+    assert b'Welcome' in response.data
+    assert b'DHIS2 server details' in response.data
+
+
+def test_populated_config_renders_dashboard(client_populated):
+    """A config with real credentials should render the dashboard, not redirect."""
+    response = client_populated.get('/', follow_redirects=False)
+    assert response.status_code == 200

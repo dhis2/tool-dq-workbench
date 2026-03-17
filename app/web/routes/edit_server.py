@@ -7,7 +7,8 @@ from app.web.utils.config_helpers import save_config
 @api_bp.route('/edit-server', methods=['GET', 'POST'], endpoint='edit_server')
 def edit_server():
     config_path = current_app.config['CONFIG_PATH']
-    config = ConfigManager(config_path, config=None, validate_structure=True,
+    skip_validation = current_app.config.get('SKIP_VALIDATION', False)
+    config = ConfigManager(config_path, config=None, validate_structure=not skip_validation,
                            validate_runtime=False).config
 
     if request.method == 'POST':
