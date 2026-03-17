@@ -3,21 +3,18 @@
 
 block_cipher = None
 
+from PyInstaller.utils.hooks import collect_all
+waitress_datas, waitress_binaries, waitress_hiddenimports = collect_all('waitress')
+
 a = Analysis(
     ['main_win.py'],
     pathex=['..'],          # project root — so 'app.web.app' resolves correctly
-    binaries=[],
+    binaries=waitress_binaries,
     datas=[
         ('../app/web/templates', 'app/web/templates'),
         ('../app/web/static',    'app/web/static'),
-    ],
-    hiddenimports=[
-        'waitress',
-        'waitress.utilities',
-        'flask_wtf',
-        'pkg_resources',
-        'pkg_resources.extern',
-    ],
+    ] + waitress_datas,
+    hiddenimports=['flask_wtf', 'pkg_resources', 'pkg_resources.extern'] + waitress_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

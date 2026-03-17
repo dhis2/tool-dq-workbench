@@ -20,7 +20,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 ; Bundle all files from the PyInstaller --onedir output
-Source: "..\dist\dq-workbench\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
+Source: "dist\dq-workbench\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs
 
 [Icons]
 ; Start Menu shortcuts
