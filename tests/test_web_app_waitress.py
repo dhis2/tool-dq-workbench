@@ -44,3 +44,50 @@ def test_main_opens_browser(config_file, monkeypatch):
     mock_threading.Timer.assert_called_once()
     timer_args = mock_threading.Timer.call_args[0]
     assert timer_args[0] == 1.5   # delay in seconds
+
+
+def test_create_app_uses_bundle_paths_when_frozen(tmp_path, monkeypatch):
+    """create_app() must use bundle paths for templates/static when sys.frozen is set."""
+    import os
+    cfg = tmp_path / "config.yml"
+    cfg.write_text(yaml.dump({
+        'server': {
+            'base_url': '',
+            'd2_token': '',
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }))
+    fake_bundle_dir = str(tmp_path / 'bundle')
+    monkeypatch.setattr(sys, 'frozen', True, raising=False)
+    monkeypatch.setattr(sys, '_MEIPASS', fake_bundle_dir, raising=False)
+
+    from app.web.app import create_app
+    flask_app = create_app(str(cfg), skip_validation=True)
+
+    assert flask_app.template_folder == os.path.join(fake_bundle_dir, 'app', 'web', 'templates')
+    assert flask_app.static_folder == os.path.join(fake_bundle_dir, 'app', 'web', 'static')
+
+
+def test_create_app_uses_normal_paths_when_not_frozen(tmp_path, monkeypatch):
+    """create_app() must use standard Flask paths when not running as a bundle."""
+    cfg = tmp_path / "config.yml"
+    cfg.write_text(yaml.dump({
+        'server': {
+            'base_url': '',
+            'd2_token': '',
+            'logging_level': 'INFO',
+            'max_concurrent_requests': 5,
+            'max_results': 500,
+        },
+        'analyzer_stages': [],
+    }))
+    monkeypatch.delattr(sys, 'frozen', raising=False)
+
+    from app.web.app import create_app
+    flask_app = create_app(str(cfg), skip_validation=True)
+
+    # Flask default: template_folder is 'templates' (relative)
+    assert flask_app.template_folder == 'templates'

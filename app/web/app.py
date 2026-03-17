@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import sys
 import threading
 import webbrowser
 from waitress import serve
@@ -66,7 +67,6 @@ def _resolve_config_path(cli_arg):
     DQ_CONFIG_PATH is a new env var for the desktop use case.
     The existing CONFIG_PATH env var remains Docker/gunicorn-only (read by create_app_from_env).
     """
-    import sys
     from pathlib import Path
     if cli_arg:
         return Path(cli_arg)
@@ -122,7 +122,18 @@ def _bootstrap_config(config_path, base_url, api_token):
 
 
 def create_app(config_path, skip_validation=False):
-    app = Flask(__name__)
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle.
+        # --onedir: resources are next to the executable
+        # --onefile: resources are in sys._MEIPASS (temp dir)
+        bundle_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+        app = Flask(
+            __name__,
+            template_folder=os.path.join(bundle_dir, 'app', 'web', 'templates'),
+            static_folder=os.path.join(bundle_dir, 'app', 'web', 'static'),
+        )
+    else:
+        app = Flask(__name__)
     _configure_secret_key(app)
     _configure_app(app, config_path, skip_validation)
 
