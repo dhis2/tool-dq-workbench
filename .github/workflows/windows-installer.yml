@@ -1,0 +1,39 @@
+# .github/workflows/windows-installer.yml
+name: Build Windows installer
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -e .[dev] pyinstaller
+
+      - name: Build with PyInstaller
+        working-directory: installer
+        run: pyinstaller dq_workbench.spec
+
+      - name: Build installer with Inno Setup
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart("v")
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            /DAppVersion=$version `
+            installer\dq_workbench_win.iss
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: installer/Output/dq-workbench-*-windows-setup.exe
