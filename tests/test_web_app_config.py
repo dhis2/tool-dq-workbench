@@ -49,4 +49,7 @@ def test_write_blank_config_creates_file(tmp_path):
         data = yaml.safe_load(f)
     assert data['server']['base_url'] == ''
     assert data['server']['d2_token'] == ''
+    assert data['server']['logging_level'] == 'INFO'
+    assert data['server']['max_concurrent_requests'] == 5
+    assert data['server']['max_results'] == 500
     assert data['analyzer_stages'] == []
