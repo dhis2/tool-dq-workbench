@@ -1,6 +1,9 @@
 import argparse
 import logging
 import os
+import threading
+import webbrowser
+from waitress import serve
 
 from flask import Flask
 
@@ -171,7 +174,12 @@ def main():
         for rule in app.url_map.iter_rules():
             print(f"  {rule.endpoint}: {rule.rule}")
 
-    app.run(debug=args.debug, use_reloader=False)
+    threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
+    print("=" * 60)
+    print("DQ Workbench is running at http://127.0.0.1:5000")
+    print("Close this window to stop the server.")
+    print("=" * 60)
+    serve(app, host="127.0.0.1", port=5000)
 
 
 if __name__ == '__main__':
