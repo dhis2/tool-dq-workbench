@@ -72,3 +72,10 @@ def test_populated_config_renders_dashboard(client_populated):
     """A config with real credentials should render the dashboard, not redirect."""
     response = client_populated.get('/', follow_redirects=False)
     assert response.status_code == 200
+
+
+def test_edit_server_get_with_blank_config(client_blank):
+    """GET /api/edit-server must render without crashing when config has empty fields."""
+    response = client_blank.get('/api/edit-server')
+    assert response.status_code == 200
+    assert b'Edit Server Configuration' in response.data

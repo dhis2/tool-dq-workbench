@@ -7,9 +7,16 @@ from app.web.utils.config_helpers import save_config
 @api_bp.route('/edit-server', methods=['GET', 'POST'], endpoint='edit_server')
 def edit_server():
     config_path = current_app.config['CONFIG_PATH']
-    skip_validation = current_app.config.get('SKIP_VALIDATION', False)
-    config = ConfigManager(config_path, config=None, validate_structure=not skip_validation,
+    config = ConfigManager(config_path, config=None, validate_structure=False,
                            validate_runtime=False).config
+
+    server = config.setdefault('server', {})
+    server.setdefault('base_url', '')
+    server.setdefault('d2_token', '')
+    server.setdefault('logging_level', 'INFO')
+    server.setdefault('max_concurrent_requests', 5)
+    server.setdefault('max_results', 500)
+    server.setdefault('min_max_bulk_api_disabled', False)
 
     if request.method == 'POST':
 
