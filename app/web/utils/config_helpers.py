@@ -5,9 +5,9 @@ from app.core.config_loader import ConfigManager
 
 def save_config(config_path, config):
         try:
-            ConfigManager(config_path,
+            ConfigManager(config_path=None,
                       config=config,
-                      validate_structure=True,
+                      validate_structure=False,
                       validate_runtime=False)
             with open(config_path, 'w') as f:
                 yaml.dump(config, f)

@@ -79,3 +79,20 @@ def test_edit_server_get_with_blank_config(client_blank):
     response = client_blank.get('/api/edit-server')
     assert response.status_code == 200
     assert b'Edit Server Configuration' in response.data
+
+
+def test_onboarding_post_flow(client_blank):
+    """Complete onboarding: fill in credentials via POST, then / renders the dashboard."""
+    post_response = client_blank.post('/api/edit-server', data={
+        'base_url': 'https://dhis2.example.org',
+        'd2_token': 'fake-token',
+        'logging_level': 'INFO',
+        'max_concurrent_requests': '5',
+        'max_results': '500',
+        'min_max_bulk_api_disabled': 'false',
+    }, follow_redirects=False)
+    assert post_response.status_code == 302
+
+    # After saving credentials, visiting / should render the dashboard (not redirect again)
+    index_response = client_blank.get('/', follow_redirects=False)
+    assert index_response.status_code == 200
