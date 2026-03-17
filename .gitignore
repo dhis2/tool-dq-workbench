@@ -44,3 +44,4 @@ tests/__pycache__/
 docs/_build/
 docs/**/_build/
 
+.worktrees/
