@@ -28,6 +28,21 @@ Register a `before_request` hook inside `create_app()`. On the first request aft
    `"A newer version (v0.9.12) is available. Visit the releases page to update."`
 2. Sets `_available_update = None` so the hook is effectively a no-op on every subsequent request.
 
+The hook must declare `global _available_update` before assigning `None`; without it Python treats the assignment as a local variable and the message flashes on every request:
+
+```python
+@app.before_request
+def _notify_if_update_available():
+    global _available_update
+    if _available_update:
+        flash(
+            f"A newer version (v{_available_update}) is available. "
+            "Visit the releases page to update.",
+            'info',
+        )
+        _available_update = None
+```
+
 ### Display
 
 No template changes required. `layout.html` already includes `partials/_flashes.html`, which renders all flash messages on every page. The `info` category maps to Bootstrap `alert-info` (blue), consistent with the config path banner added to `edit_server.html`.
