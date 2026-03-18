@@ -210,6 +210,18 @@ def main():
         logging.info(f"No config found at '{config_path}'. Creating blank config.")
         _write_blank_config(config_path)
         skip_validation = True
+    elif not skip_validation:
+        # If the config exists but has no base_url, we're still in onboarding mode.
+        # Skip validation so the app starts and the web UI can guide setup.
+        import yaml
+        try:
+            with open(config_path) as f:
+                raw = yaml.safe_load(f)
+            base_url = (raw or {}).get('server', {}).get('base_url', '')
+            if not base_url:
+                skip_validation = True
+        except Exception:
+            pass  # Let create_app surface the real error
 
     app = create_app(str(config_path), skip_validation=skip_validation)
     print(f"Using config: {app.config['CONFIG_PATH']}")
