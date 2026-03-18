@@ -210,7 +210,7 @@ class Dhis2ApiUtils:
 
     def ping(self):
         try:
-            response = requests.get(f"{self.base_url}/api/system/ping", headers=self.request_headers)
+            response = requests.get(f"{self.base_url}/api/me", headers=self.request_headers)
             return response.status_code == 200
         except requests.exceptions.RequestException:
             return False
