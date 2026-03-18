@@ -23,10 +23,11 @@ A typical setup looks like this:
 
 ---
 
-There are three supported ways to install the DQ Workbench, depending on your
+There are four supported ways to install the DQ Workbench, depending on your
 environment and how you intend to use it.  Choose the one that suits you best:
 
-- :ref:`install-docker` — recommended for the Web UI; no Python installation required.
+- :ref:`install-windows` — recommended for non-technical Windows users; no Python or Docker required.
+- :ref:`install-docker` — recommended for the Web UI on Linux/macOS; no Python installation required.
 - :ref:`install-venv` — recommended for production CLI runs (cron / systemd).
 - :ref:`install-conda` — alternative for local use if you already use conda.
 
@@ -38,6 +39,83 @@ the repository first:
    git clone https://github.com/dhis2/tool-dq-workbench.git
    cd tool-dq-workbench
 
+
+.. _install-windows:
+
+Windows installer
+-----------------
+
+**Requirements:** Windows 10 or later.  No Python, Docker, or command-line knowledge required.
+
+The Windows installer is the recommended option for data managers who are not
+comfortable with the command line.  It bundles the entire application into a
+standard Windows setup wizard — double-click to install, double-click to run.
+
+Download
+^^^^^^^^
+
+Download the latest installer from the
+`GitHub Releases page <https://github.com/dhis2/tool-dq-workbench/releases/latest>`_:
+
+.. code-block:: text
+
+   dq-workbench-X.Y.Z-windows-setup.exe
+
+Installation
+^^^^^^^^^^^^
+
+Run the downloaded ``.exe``.  Windows SmartScreen may display a warning because
+the installer is not code-signed.  This is expected — click **More info**, then
+**Run anyway** to proceed.
+
+.. figure:: _static/screenshots/windows_smartscreen_1.png
+   :alt: Windows SmartScreen warning — "Windows protected your PC"
+   :width: 500px
+
+   SmartScreen warning on first launch.
+
+.. figure:: _static/screenshots/windows_smartscreen_2.png
+   :alt: SmartScreen "More info" expanded — showing the Run anyway button
+   :width: 500px
+
+   Click **More info** to reveal the **Run anyway** button.
+
+The installer wizard will guide you through the rest:
+
+- Choose an install location (default: ``C:\Program Files (x86)\DQ Workbench``)
+- Optionally create a desktop shortcut
+- Optionally launch the app immediately after installation
+
+Running the app
+^^^^^^^^^^^^^^^
+
+Double-click the **DQ Workbench** shortcut in the Start Menu or on the desktop.
+A console window opens and your browser navigates automatically to
+``http://127.0.0.1:5000``.
+
+On first run you will be taken straight to the server configuration page —
+enter your DHIS2 server URL and API token to get started.
+
+**Close the console window to stop the server.**
+
+Configuration file location
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Your configuration is saved to:
+
+.. code-block:: text
+
+   C:\Users\<your-username>\Documents\DQ Workbench\config.yml
+
+This file is in your Documents folder so it is easy to find and share.  Once
+you have finished configuring your stages, hand this file to the system
+administrator who will schedule the CLI runs on the server.
+
+Updating
+^^^^^^^^
+
+Download and run the latest installer from the GitHub Releases page.  It will
+replace the existing installation automatically.
 
 .. _install-docker:
 
