@@ -30,14 +30,21 @@ Register a `before_request` hook inside `create_app()`. On the first request aft
 
 The hook must declare `global _available_update` before assigning `None`; without it Python treats the assignment as a local variable and the message flashes on every request:
 
+Flask auto-escapes flash message strings, so use `flask.Markup` to include a safe clickable link:
+
 ```python
+from flask import Markup
+
 @app.before_request
 def _notify_if_update_available():
     global _available_update
     if _available_update:
         flash(
-            f"A newer version (v{_available_update}) is available. "
-            "Visit the releases page to update.",
+            Markup(
+                f"A newer version (v{_available_update}) is available. "
+                '<a href="https://github.com/dhis2/tool-dq-workbench/releases" '
+                'class="alert-link" target="_blank" rel="noopener">Download it here.</a>'
+            ),
             'info',
         )
         _available_update = None
