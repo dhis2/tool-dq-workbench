@@ -1,4 +1,4 @@
-more Installation
+Installation
 ============
 
 Intended workflow
