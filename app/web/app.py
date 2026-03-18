@@ -7,6 +7,7 @@ import webbrowser
 from waitress import serve
 
 from flask import Flask, flash
+from markupsafe import Markup
 
 from app.core.config_loader import ConfigManager
 from .routes import register_routes
@@ -145,8 +146,6 @@ def create_app(config_path, skip_validation=False):
     _configure_logging(app)
 
     register_routes(app)
-
-    from markupsafe import Markup
 
     @app.before_request
     def _notify_if_update_available():
