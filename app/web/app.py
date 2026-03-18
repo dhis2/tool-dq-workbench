@@ -24,15 +24,47 @@ def _configure_secret_key(app):
     app.secret_key = secret_key
 def _configure_app(app, config_path, skip_validation):
     config_path = os.path.abspath(config_path)
-    app.config['CONFIG_PATH'] = os.path.abspath(config_path)
+    app.config['CONFIG_PATH'] = config_path
     app.config['SKIP_VALIDATION'] = skip_validation
+
+    if skip_validation:
+        return  # onboarding mode — no validation needed
+
     try:
-        ConfigManager(config_path,
-                      config=None,
-                      validate_structure=False,
-                      validate_runtime=not skip_validation)
+        ConfigManager(
+            config_path,
+            config=None,
+            validate_structure=False,
+            validate_runtime=True,
+        )
+    except ValueError as e:
+        msg = str(e)
+        if 'unreachable' in msg:
+            app.config['STARTUP_WARNING'] = (
+                "Could not reach the DHIS2 server — check that your base URL is correct.",
+                'warning',
+            )
+        elif 'token' in msg.lower() or 'auth' in msg.lower() or 'rejected' in msg.lower():
+            app.config['STARTUP_WARNING'] = (
+                "Your API token was rejected. The server is reachable but authentication "
+                "failed. Please enter a new token.",
+                'warning',
+            )
+        else:
+            app.config['STARTUP_WARNING'] = (
+                f"Configuration problem: {msg}",
+                'danger',
+            )
+        app.config['SKIP_VALIDATION'] = True
+        logging.warning("Startup validation failed (graceful degradation): %s", msg)
     except Exception as e:
-        raise RuntimeError(f"Failed to start due to invalid configuration: {e}") from e
+        app.config['STARTUP_WARNING'] = (
+            f"Your config file could not be read: {e}. "
+            f"Please check the file at {config_path}.",
+            'danger',
+        )
+        app.config['SKIP_VALIDATION'] = True
+        logging.error("Failed to load config at startup (graceful degradation): %s", e)
 
 
 def create_app_from_env():
