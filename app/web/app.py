@@ -55,8 +55,10 @@ def create_app_from_env():
         else:
             logging.info(f"No config or credentials found. Creating blank config at '{config_path}'.")
             _write_blank_config(Path(config_path))
+            _check_for_updates()
             return create_app(config_path, skip_validation=True)
 
+    _check_for_updates()
     return create_app(config_path)
 
 
@@ -157,6 +159,41 @@ def _configure_logging(app):
         logging.basicConfig(level=logging.INFO)
 
 
+def _check_for_updates():
+    """Start a background thread that checks GitHub for a newer release.
+    Logs a warning if one is found. Fails silently on any error.
+    """
+    def _do_check():
+        try:
+            from importlib.metadata import version as pkg_version
+            import requests
+            current = pkg_version('tool-dq-workbench')
+            resp = requests.get(
+                'https://api.github.com/repos/dhis2/tool-dq-workbench/releases/latest',
+                timeout=5,
+                headers={'Accept': 'application/vnd.github.v3+json'},
+            )
+            if resp.status_code != 200:
+                return
+            latest_tag = resp.json().get('tag_name', '').lstrip('v')
+            if not latest_tag or latest_tag == current:
+                return
+            def _parse(v):
+                try:
+                    return tuple(int(x) for x in v.split('.'))
+                except ValueError:
+                    return (0,)
+            if _parse(latest_tag) > _parse(current):
+                logging.warning(
+                    f"A newer version (v{latest_tag}) is available. "
+                    "Visit https://github.com/dhis2/tool-dq-workbench/releases to update."
+                )
+        except Exception:
+            pass  # Never crash the app over a version check
+
+    threading.Thread(target=_do_check, daemon=True).start()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Flask UI for Data Quality Monitor")
     parser.add_argument('--config', default=None, help='Path to YAML config file (default: platform-appropriate location)')
@@ -184,6 +221,7 @@ def main():
         for rule in app.url_map.iter_rules():
             print(f"  {rule.endpoint}: {rule.rule}")
 
+    _check_for_updates()
     threading.Timer(1.5, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
     print("=" * 60)
     print("DQ Workbench is running at http://127.0.0.1:5000")
