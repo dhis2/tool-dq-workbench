@@ -1,3 +1,5 @@
+import os
+
 from flask import current_app, request, render_template, redirect, url_for, flash
 
 from app.core.config_loader import ConfigManager
@@ -7,6 +9,7 @@ from app.web.utils.config_helpers import save_config
 @api_bp.route('/edit-server', methods=['GET', 'POST'], endpoint='edit_server')
 def edit_server():
     config_path = current_app.config['CONFIG_PATH']
+    abs_config_path = os.path.abspath(config_path)
     config = ConfigManager(config_path, config=None, validate_structure=False,
                            validate_runtime=False).config
 
@@ -45,7 +48,9 @@ def edit_server():
             return redirect(url_for('ui.index'))
 
         # Return form with the values user submitted
-        return render_template("edit_server.html", server=config['server'])
+        return render_template("edit_server.html", server=config['server'],
+                               config_path=abs_config_path)
 
     # GET request
-    return render_template("edit_server.html", server=config['server'])
+    return render_template("edit_server.html", server=config['server'],
+                           config_path=abs_config_path)

@@ -2,6 +2,32 @@
 
 {% block content %}
 {% include "partials/_flashes.html" %}
+  <div class="alert alert-info d-flex align-items-center gap-2 mb-4" role="alert">
+    <div class="flex-grow-1">
+      <strong>Config file location:</strong>
+      <code id="config-path-value">{{ config_path }}</code>
+    </div>
+    <button
+      class="btn btn-sm btn-outline-secondary"
+      type="button"
+      aria-label="Copy config file path to clipboard"
+      onclick="
+        var path = document.getElementById('config-path-value').innerText;
+        var btn = event.currentTarget;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(path).then(function() {
+            var orig = btn.innerText;
+            btn.innerText = 'Copied!';
+            setTimeout(function() { btn.innerText = orig; }, 1500);
+          }).catch(function() {
+            window.prompt('Copy this path:', path);
+          });
+        } else {
+          window.prompt('Copy this path:', path);
+        }
+      "
+    >Copy path</button>
+  </div>
   <h1>Edit Server Configuration</h1>
 
   <form method="post">
