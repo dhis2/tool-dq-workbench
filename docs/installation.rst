@@ -65,20 +65,23 @@ Installation
 ^^^^^^^^^^^^
 
 Run the downloaded ``.exe``.  Windows SmartScreen may display a warning because
-the installer is not code-signed.  This is expected — click **More info**, then
-**Run anyway** to proceed.
+the installer is not code-signed. This is expected. Once the file has
+completed downloading, click on the "..." in the upper right corner
+of the download notitication and choose "Keep".
 
 .. figure:: _static/screenshots/windows_smartscreen_1.png
    :alt: Windows SmartScreen warning — "Windows protected your PC"
    :width: 500px
 
-   SmartScreen warning on first launch.
+You may be prompted a second time by Microsoft Defender SmartScreen.
+In the bottom left of the dialog, choose "Keep anyway"
 
 .. figure:: _static/screenshots/windows_smartscreen_2.png
    :alt: SmartScreen "More info" expanded — showing the Run anyway button
    :width: 500px
 
-   Click **More info** to reveal the **Run anyway** button.
+Once you have performed those actions, you should be able to open
+the installer.
 
 The installer wizard will guide you through the rest:
 
