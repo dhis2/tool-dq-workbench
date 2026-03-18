@@ -43,7 +43,7 @@ def ping(self) -> tuple[str, str | None]:
         return ('unreachable', str(e))
 ```
 
-Any caller that currently checks `if not api_utils.ping()` must be updated to unpack the tuple and check `status != 'ok'`. The only such caller is `config_loader.py:_validate_runtime()`.
+Any caller that currently checks `if not api_utils.ping()` must be updated to unpack the tuple and check `status != 'ok'`. The only such caller is `config_loader.py:_validate_runtime()`. Note: `_validate_api_token()` in `validate_structure()` makes its own independent HTTP call and is unaffected — it is not invoked during web startup because `_configure_app()` calls `ConfigManager` with `validate_structure=False`.
 
 ### 2. `app/core/config_loader.py` — update `_validate_runtime()` caller
 
@@ -112,21 +112,21 @@ def _configure_app(app, config_path, skip_validation):
 
 ### 4. `app/web/routes/index.py` — redirect on `STARTUP_WARNING`
 
-Add a check for `STARTUP_WARNING` after the existing `has_server` check:
+Add a check for `STARTUP_WARNING` **before** the existing `has_server` check. If both conditions are true (e.g. a corrupt config that also has a blank URL), the startup warning is more specific and actionable — it must not be swallowed by the generic "Welcome" redirect:
 
 ```python
-if not load_error and not has_server:
-    flash("Welcome — please enter your DHIS2 server details to get started.", "info")
-    return redirect(url_for('api.edit_server'))
-
 startup_warning = current_app.config.pop('STARTUP_WARNING', None)
 if startup_warning:
     message, category = startup_warning
     flash(message, category)
     return redirect(url_for('api.edit_server'))
+
+if not load_error and not has_server:
+    flash("Welcome — please enter your DHIS2 server details to get started.", "info")
+    return redirect(url_for('api.edit_server'))
 ```
 
-Using `pop()` ensures the warning fires once and clears itself — consistent with Flask's flash behaviour.
+`pop()` clears the warning from shared app config after the first request reads it. This is **not** equivalent to Flask's session-based `flash()` (which is per-user). It works correctly because the app runs as a single-worker process (Waitress desktop mode). In a multi-worker deployment, a concurrent request could consume the warning before the user's browser receives it — but that is not a supported configuration.
 
 ### 5. `app/web/routes/edit_server.py` — guard against unreadable config
 
@@ -164,11 +164,20 @@ server.setdefault('base_url', '')
 
 ## Testing
 
-- Unit test: `_configure_app()` with a mock `ConfigManager` that raises `ValueError("unreachable...")` → assert `app.config['STARTUP_WARNING']` is set with `'warning'` category, no exception raised
-- Unit test: `_configure_app()` with a mock that raises `ValueError("token...rejected...")` → assert `STARTUP_WARNING` set with `'warning'` category
-- Unit test: `_configure_app()` with a mock that raises `Exception("YAML parse error")` → assert `STARTUP_WARNING` set with `'danger'` category
-- Integration test: GET `/` with `STARTUP_WARNING` pre-set → assert 302 redirect to edit-server and flash message in response
-- Integration test: GET `/api/edit-server` with an unreadable config path → assert 200 (blank form renders, no crash)
-- Unit test: `ping()` with mock returning 200 → `('ok', None)`
-- Unit test: `ping()` with mock returning 401 → `('auth_failed', ...)`
-- Unit test: `ping()` with `ConnectionError` → `('unreachable', ...)`
+**`ping()` return values:**
+- Mock HTTP 200 → `('ok', None)`
+- Mock HTTP 401 → `('auth_failed', 'Server returned HTTP 401')`
+- Mock `ConnectionError` → `('unreachable', ...)`
+
+**`_configure_app()` error categorisation:**
+- Mock `ConfigManager` raising `ValueError("DHIS2 server is unreachable: ...")` → `STARTUP_WARNING` set with `'warning'` category, no exception raised
+- Mock `ConfigManager` raising `ValueError("API token was rejected...")` → `STARTUP_WARNING` set with `'warning'` category
+- Mock `ConfigManager` raising `ValueError("Default category option combo '...' does not exist")` (from `_validate_default_coc`) → `STARTUP_WARNING` set with `'danger'` category (falls through to `else` branch — server was reachable and token valid, but COC check failed)
+- Mock `ConfigManager` raising a bare `Exception("YAML parse error")` → `STARTUP_WARNING` set with `'danger'` category
+
+**`index.py` redirect behaviour:**
+- GET `/` with `STARTUP_WARNING` pre-set → 302 redirect to edit-server, flash message in response, `STARTUP_WARNING` cleared from `app.config`
+- GET `/` with `STARTUP_WARNING` pre-set AND blank `base_url` → `STARTUP_WARNING` fires (not the "Welcome" redirect), confirming check ordering
+
+**`edit_server` resilience:**
+- GET `/api/edit-server` with a config path pointing to an unparseable file → 200, blank form renders, no crash
