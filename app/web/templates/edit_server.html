@@ -10,14 +10,21 @@
     <button
       class="btn btn-sm btn-outline-secondary"
       type="button"
+      aria-label="Copy config file path to clipboard"
       onclick="
-        navigator.clipboard.writeText(document.getElementById('config-path-value').innerText)
-          .then(function() {
-            var btn = event.currentTarget;
+        var path = document.getElementById('config-path-value').innerText;
+        var btn = event.currentTarget;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(path).then(function() {
             var orig = btn.innerText;
             btn.innerText = 'Copied!';
             setTimeout(function() { btn.innerText = orig; }, 1500);
+          }).catch(function() {
+            window.prompt('Copy this path:', path);
           });
+        } else {
+          window.prompt('Copy this path:', path);
+        }
       "
     >Copy path</button>
   </div>
