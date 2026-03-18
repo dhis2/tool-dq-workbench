@@ -96,3 +96,10 @@ def test_onboarding_post_flow(client_blank):
     # After saving credentials, visiting / should render the dashboard (not redirect again)
     index_response = client_blank.get('/', follow_redirects=False)
     assert index_response.status_code == 200
+
+
+def test_edit_server_shows_config_path(client_blank, blank_config):
+    """GET /api/edit-server must display the absolute config file path."""
+    import os
+    response = client_blank.get('/api/edit-server')
+    assert os.path.abspath(blank_config).encode() in response.data
