@@ -72,8 +72,11 @@ class ConfigManager:
 
         # Attempt to ping the server
         api_utils = Dhis2ApiUtils(url, config['server'].get('d2_token', ''))
-        if not api_utils.ping():
-            raise ValueError("DHIS2 server is unreachable or token is invalid (ping failed)")
+        status, reason = api_utils.ping()
+        if status == 'unreachable':
+            raise ValueError(f"DHIS2 server is unreachable: {reason}")
+        if status == 'auth_failed':
+            raise ValueError(f"API token was rejected by the server: {reason}")
 
         cls._validate_max_results(api_utils, config)
         cls._validate_default_coc(config)

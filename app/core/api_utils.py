@@ -208,12 +208,24 @@ class Dhis2ApiUtils:
         response.raise_for_status()
         return response.json()
 
-    def ping(self):
+    def ping(self) -> tuple[str, str | None]:
+        """
+        Returns:
+            ('ok', None)                — connected and authenticated
+            ('unreachable', reason)     — network/connection failure
+            ('auth_failed', reason)     — server responded but rejected the token (4xx)
+        """
         try:
-            response = requests.get(f"{self.base_url}/api/me", headers=self.request_headers)
-            return response.status_code == 200
-        except requests.exceptions.RequestException:
-            return False
+            response = requests.get(
+                f"{self.base_url}/api/me",
+                headers=self.request_headers,
+                timeout=5,
+            )
+            if response.status_code == 200:
+                return ('ok', None)
+            return ('auth_failed', f"Server returned HTTP {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            return ('unreachable', str(e))
 
     # --- Import Summary Logging ---
     @staticmethod
