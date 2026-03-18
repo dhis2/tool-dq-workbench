@@ -6,10 +6,34 @@ in DHIS2 data elements, making them available for analysis in maps, charts, and 
 
 ## Quick start
 
-The fastest way to get started is with Docker. You only need a DHIS2 instance and a
-personal access token.
+### Windows installer
 
-**Remote DHIS2:**
+The easiest option for Windows users — no Python, Docker, or command line required.
+
+Download `dq-workbench-X.Y.Z-windows-setup.exe` from the
+[latest release](https://github.com/dhis2/tool-dq-workbench/releases/latest),
+run the installer, and launch the app from the Start Menu. The browser opens
+automatically and you are taken straight to the server setup page on first run.
+
+> **SmartScreen warning:** Windows may warn that the installer is from an unknown
+> publisher. Click **More info → Run anyway** to proceed.
+
+### Docker
+
+Docker works on Linux, macOS, and Windows (via WSL2). No Python installation required.
+
+**Simplest start — configure via the web UI:**
+
+```bash
+docker run --rm -p 127.0.0.1:5001:5000 \
+  -v $(pwd)/config:/app/config \
+  ghcr.io/dhis2/tool-dq-workbench:latest
+```
+
+Open http://localhost:5001 — you will be taken straight to the server setup page.
+Your credentials are saved to `./config/config.yml` for future runs.
+
+**Or pass credentials directly:**
 
 ```bash
 docker run --rm -p 127.0.0.1:5001:5000 \
@@ -20,9 +44,6 @@ docker run --rm -p 127.0.0.1:5001:5000 \
 ```
 
 **Local DHIS2 (also running in Docker):**
-
-If your DHIS2 is running locally via Docker, `localhost` inside the workbench
-container won't reach it — use `host.docker.internal` instead:
 
 ```bash
 docker run --rm -p 127.0.0.1:5001:5000 \
@@ -45,8 +66,7 @@ docker run --rm --network host \
   ghcr.io/dhis2/tool-dq-workbench:latest
 ```
 
-Open http://localhost:5001 in your browser. A configuration file will be created
-automatically in `./config` on first run.
+The web UI will be available at http://localhost:5000 when using `--network host`.
 
 > **Note:** The web UI has no built-in authentication. Only run it on localhost or
 > a trusted network, and stop it when you are done.
