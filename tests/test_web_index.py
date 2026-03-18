@@ -140,3 +140,15 @@ def test_startup_warning_fires_before_welcome_redirect(client_blank):
     response = client_blank.get('/', follow_redirects=True)
     assert b'rejected' in response.data
     assert b'Welcome' not in response.data
+
+
+def test_edit_server_resilient_to_unparseable_config(tmp_path):
+    """GET /api/edit-server must not crash when the config file has invalid YAML."""
+    bad_cfg = tmp_path / "config.yml"
+    bad_cfg.write_text(": bad yaml: [unclosed")
+    app = create_app(str(bad_cfg), skip_validation=True)
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        response = client.get('/api/edit-server')
+    assert response.status_code == 200
+    assert b'Edit Server Configuration' in response.data

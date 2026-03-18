@@ -10,8 +10,11 @@ from app.web.utils.config_helpers import save_config
 def edit_server():
     config_path = current_app.config['CONFIG_PATH']
     abs_config_path = os.path.abspath(config_path)
-    config = ConfigManager(config_path, config=None, validate_structure=False,
-                           validate_runtime=False).config
+    try:
+        config = ConfigManager(config_path, config=None, validate_structure=False,
+                               validate_runtime=False).config
+    except Exception:
+        config = {}
 
     server = config.setdefault('server', {})
     server.setdefault('base_url', '')
