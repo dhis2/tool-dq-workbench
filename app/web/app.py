@@ -39,10 +39,12 @@ def create_app_from_env():
     """Gunicorn-compatible factory that reads CONFIG_PATH from the environment.
     Used as the application callable in Docker: gunicorn "app.web.app:create_app_from_env()"
 
-    If CONFIG_PATH does not exist but DHIS2_BASE_URL and DHIS2_API_TOKEN are set,
-    a minimal config file is bootstrapped automatically so the app starts without
-    any pre-existing configuration.
+    Config resolution order:
+    1. CONFIG_PATH file exists → use it
+    2. DHIS2_BASE_URL + DHIS2_API_TOKEN set → bootstrap a seeded config
+    3. Neither → write a blank config and start in onboarding mode (redirects to web UI setup page)
     """
+    from pathlib import Path
     config_path = os.environ.get('CONFIG_PATH', '/app/config/config.yml')
 
     if not os.path.exists(config_path):
@@ -51,11 +53,9 @@ def create_app_from_env():
         if base_url and api_token:
             _bootstrap_config(config_path, base_url, api_token)
         else:
-            raise RuntimeError(
-                f"Config file not found at '{config_path}'. "
-                "Either mount a config file or set DHIS2_BASE_URL and DHIS2_API_TOKEN "
-                "environment variables to bootstrap one automatically."
-            )
+            logging.info(f"No config or credentials found. Creating blank config at '{config_path}'.")
+            _write_blank_config(Path(config_path))
+            return create_app(config_path, skip_validation=True)
 
     return create_app(config_path)
 
