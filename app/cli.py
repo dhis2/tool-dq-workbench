@@ -43,22 +43,21 @@ class DataQualityMonitor:
 
         self.api_utils = Dhis2ApiUtils(self.base_url, self.d2_token)
 
-        log_file = config['server'].get("log_file", "dq_monitor.log")
+        log_file = config['server'].get("log_file")
         log_level = config['server'].get("logging_level", "INFO").upper()
 
-        # Ensure log directory exists if a path is provided
-        log_dir = os.path.dirname(log_file)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
+        handlers = [logging.StreamHandler(sys.stdout)]
+        if log_file:
+            log_dir = os.path.dirname(log_file)
+            if log_dir:
+                os.makedirs(log_dir, exist_ok=True)
+            handlers.append(logging.FileHandler(log_file))
 
         # Force reconfiguration so logs appear even if something configured logging earlier
         logging.basicConfig(
             level=log_level,
             format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file),
-                logging.StreamHandler(sys.stdout)
-            ],
+            handlers=handlers,
             force=True,
         )
 
