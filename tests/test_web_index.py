@@ -105,3 +105,38 @@ def test_edit_server_shows_config_path(client_blank, blank_config):
     """GET /api/edit-server must display the absolute config file path."""
     response = client_blank.get('/api/edit-server')
     assert os.path.abspath(blank_config).encode() in response.data
+
+
+def test_startup_warning_redirects_to_edit_server(client_blank):
+    """STARTUP_WARNING pre-set → 302 redirect to edit-server with flash message."""
+    with client_blank.application.app_context():
+        client_blank.application.config['STARTUP_WARNING'] = (
+            "Could not reach the DHIS2 server — check that your base URL is correct.",
+            'warning',
+        )
+    response = client_blank.get('/', follow_redirects=True)
+    assert b'Could not reach' in response.data
+
+
+def test_startup_warning_cleared_after_first_request(client_blank):
+    """STARTUP_WARNING is consumed on first request and not shown on the second."""
+    with client_blank.application.app_context():
+        client_blank.application.config['STARTUP_WARNING'] = (
+            "Could not reach the DHIS2 server — check that your base URL is correct.",
+            'warning',
+        )
+    client_blank.get('/', follow_redirects=True)  # first request consumes it
+    response = client_blank.get('/', follow_redirects=True)  # second request
+    assert b'Could not reach' not in response.data
+
+
+def test_startup_warning_fires_before_welcome_redirect(client_blank):
+    """STARTUP_WARNING takes priority over the generic 'Welcome' redirect when both apply."""
+    with client_blank.application.app_context():
+        client_blank.application.config['STARTUP_WARNING'] = (
+            "Your API token was rejected.",
+            'warning',
+        )
+    response = client_blank.get('/', follow_redirects=True)
+    assert b'rejected' in response.data
+    assert b'Welcome' not in response.data

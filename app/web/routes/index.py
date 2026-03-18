@@ -39,6 +39,12 @@ def index():
         # Don't crash—render the page with an error message
         load_error = str(e)
 
+    startup_warning = current_app.config.pop('STARTUP_WARNING', None)
+    if startup_warning:
+        message, category = startup_warning
+        flash(message, category)
+        return redirect(url_for('api.edit_server'))
+
     if not load_error and not has_server:
         flash("Welcome \u2014 please enter your DHIS2 server details to get started.", "info")
         return redirect(url_for('api.edit_server'))
