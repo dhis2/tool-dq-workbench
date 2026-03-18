@@ -26,12 +26,11 @@ def _configure_app(app, config_path, skip_validation):
     config_path = os.path.abspath(config_path)
     app.config['CONFIG_PATH'] = os.path.abspath(config_path)
     app.config['SKIP_VALIDATION'] = skip_validation
-    validate = not skip_validation
     try:
         ConfigManager(config_path,
-                      config = None,
-                      validate_structure=validate,
-    validate_runtime=validate)
+                      config=None,
+                      validate_structure=False,
+                      validate_runtime=not skip_validation)
     except Exception as e:
         raise RuntimeError(f"Failed to start due to invalid configuration: {e}") from e
 
