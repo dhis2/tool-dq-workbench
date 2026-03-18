@@ -481,6 +481,11 @@ class MinMaxFactory:
                             dv for dv in data_values
                             if dv.get('dataElement') in prepared_stage['filtered_data_elements']
                         ]
+                    # Some DHIS2 versions omit orgUnit from individual records when it is
+                    # unambiguous from the request. Inject it so downstream code can rely on it.
+                    for dv in data_values:
+                        if 'orgUnit' not in dv:
+                            dv['orgUnit'] = org_unit
                     return {'dataValues': data_values}
                 else:
                     raise RequestException(f"Failed to fetch data values: {response.status} - {await response.text()}")
