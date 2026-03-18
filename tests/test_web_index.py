@@ -1,6 +1,9 @@
 # tests/test_web_index.py
+import os
+
 import pytest
 import yaml
+
 from app.web.app import create_app
 
 
@@ -100,6 +103,5 @@ def test_onboarding_post_flow(client_blank):
 
 def test_edit_server_shows_config_path(client_blank, blank_config):
     """GET /api/edit-server must display the absolute config file path."""
-    import os
     response = client_blank.get('/api/edit-server')
     assert os.path.abspath(blank_config).encode() in response.data
