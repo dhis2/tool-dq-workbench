@@ -6,10 +6,13 @@ import threading
 import webbrowser
 from waitress import serve
 
-from flask import Flask
+from flask import Flask, flash
 
 from app.core.config_loader import ConfigManager
 from .routes import register_routes
+
+
+_available_update: str | None = None  # set by _check_for_updates(); read once by before_request hook
 
 
 def _configure_secret_key(app):
@@ -142,6 +145,23 @@ def create_app(config_path, skip_validation=False):
     _configure_logging(app)
 
     register_routes(app)
+
+    from markupsafe import Markup
+
+    @app.before_request
+    def _notify_if_update_available():
+        global _available_update
+        if _available_update:
+            flash(
+                Markup(
+                    f"A newer version (v{_available_update}) is available. "
+                    '<a href="https://github.com/dhis2/tool-dq-workbench/releases" '
+                    'class="alert-link" target="_blank" rel="noopener">Download it here.</a>'
+                ),
+                'info',
+            )
+            _available_update = None
+
     return app
 
 
@@ -184,6 +204,8 @@ def _check_for_updates():
                 except ValueError:
                     return (0,)
             if _parse(latest_tag) > _parse(current):
+                global _available_update
+                _available_update = latest_tag
                 logging.warning(
                     f"A newer version (v{latest_tag}) is available. "
                     "Visit https://github.com/dhis2/tool-dq-workbench/releases to update."

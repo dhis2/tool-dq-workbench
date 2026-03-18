@@ -105,3 +105,27 @@ def test_edit_server_shows_config_path(client_blank, blank_config):
     """GET /api/edit-server must display the absolute config file path."""
     response = client_blank.get('/api/edit-server')
     assert os.path.abspath(blank_config).encode() in response.data
+
+
+def test_update_notification_shown_on_first_request(client_blank):
+    """If a newer version is available, flash message appears on first page load."""
+    import app.web.app as app_module
+    app_module._available_update = "9.9.9"
+    try:
+        response = client_blank.get('/', follow_redirects=True)
+        assert b'9.9.9' in response.data
+        assert b'github.com/dhis2/tool-dq-workbench/releases' in response.data
+    finally:
+        app_module._available_update = None
+
+
+def test_update_notification_shown_only_once(client_blank):
+    """Update flash message must not appear on the second request."""
+    import app.web.app as app_module
+    app_module._available_update = "9.9.9"
+    try:
+        client_blank.get('/', follow_redirects=True)   # first request consumes it
+        response = client_blank.get('/', follow_redirects=True)  # second request
+        assert b'9.9.9' not in response.data
+    finally:
+        app_module._available_update = None
